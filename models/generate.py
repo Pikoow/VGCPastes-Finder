@@ -2,16 +2,14 @@ import json
 import pickle
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+from transformers import pipeline
 import requests
-import os
 
 # Load models
 with open("models/recommender.pkl", "rb") as f:
     vectorizer = pickle.load(f)
 
-# Hugging Face API details
-API_URL = "https://api-inference.huggingface.co/models/pikoow/vggcpastes-finder"
-API_TOKEN = os.getenv("HUGGINGFACE_API_KEY")
+nlp_model = pipeline("text-classification", model="models/nlp_model")
 
 # Load processed data
 with open("data/processed_data.json", "r") as f:
@@ -30,28 +28,16 @@ def fetch_all_items():
     else:
         print(f"Failed to fetch items from PokeAPI. Status code: {response.status_code}")
         return []
-
+    
 all_items = fetch_all_items()
 
-def query_huggingface_model(text):
+def extract_keywords(instruction):
     """
-    Query the Hugging Face Inference API with the given text.
+    Extract keywords from the instruction using the NLP model.
     """
-    headers = {"Authorization": f"Bearer {API_TOKEN}"}
-    payload = {"inputs": text}
-    response = requests.post(API_URL, headers=headers, json=payload)
-    
-    if response.status_code != 200:
-        print(f"Error: Hugging Face API returned status code {response.status_code}")
-        print(f"Response content: {response.text}")
-        return None
-    
-    try:
-        return response.json()
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON from Hugging Face API: {e}")
-        print(f"Response content: {response.text}")
-        return None
+    # Use the NLP model to classify the instruction (if needed)
+    attributes = nlp_model(instruction)
+    return attributes
 
 def parse_instruction(instruction):
     """
@@ -64,15 +50,6 @@ def parse_instruction(instruction):
         "types": [],
         "roles": []
     }
-
-    # Use Hugging Face's API to extract keywords or classify the instruction
-    result = query_huggingface_model(instruction)
-    if result is not None:
-        # Example: Extract keywords or classifications from the result
-        # (You'll need to adapt this based on your model's output format)
-        if isinstance(result, list) and len(result) > 0:
-            keywords = result[0].get("label", "")  # Adjust based on your model's output
-            parsed["types"].append(keywords)  # Example: Add extracted keywords to types
 
     # Detect Pokémon names
     for team in data:
