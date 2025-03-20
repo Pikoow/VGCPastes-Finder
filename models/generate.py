@@ -10,7 +10,7 @@ with open("models/recommender.pkl", "rb") as f:
     vectorizer = pickle.load(f)
 
 # Hugging Face API details
-API_URL = "https://api-inference.huggingface.co/models/your-model-name"
+API_URL = "https://api-inference.huggingface.co/models/pikoow/vggcpastes-finder"
 API_TOKEN = os.getenv("HUGGINGFACE_API_KEY")
 
 # Load processed data
