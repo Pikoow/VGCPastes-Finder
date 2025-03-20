@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template
 from models.generate import generate_pokepaste
 import os
 
-app = Flask(__name__, template_folder="../templates")
+app = Flask(__name__, template_folder="../templates", static_folder="../static")
 
 @app.route("/generate", methods=["POST"])
 def generate():
