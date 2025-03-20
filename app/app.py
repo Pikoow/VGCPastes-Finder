@@ -4,7 +4,7 @@ import os
 
 app = Flask(__name__, template_folder="../templates", static_folder="../static")
 
-@app.route("/generate", methods=["POST"])
+@app.route("/api/generate", methods=["POST"])
 def generate():
     data = request.json
     instruction = data.get("instruction")
