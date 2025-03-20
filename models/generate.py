@@ -40,7 +40,18 @@ def query_huggingface_model(text):
     headers = {"Authorization": f"Bearer {API_TOKEN}"}
     payload = {"inputs": text}
     response = requests.post(API_URL, headers=headers, json=payload)
-    return response.json()
+    
+    if response.status_code != 200:
+        print(f"Error: Hugging Face API returned status code {response.status_code}")
+        print(f"Response content: {response.text}")
+        return None
+    
+    try:
+        return response.json()
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON from Hugging Face API: {e}")
+        print(f"Response content: {response.text}")
+        return None
 
 def parse_instruction(instruction):
     """
@@ -56,11 +67,12 @@ def parse_instruction(instruction):
 
     # Use Hugging Face's API to extract keywords or classify the instruction
     result = query_huggingface_model(instruction)
-    # Example: Extract keywords or classifications from the result
-    # (You'll need to adapt this based on your model's output format)
-    if result and isinstance(result, list) and len(result) > 0:
-        keywords = result[0].get("label", "")  # Adjust based on your model's output
-        parsed["types"].append(keywords)  # Example: Add extracted keywords to types
+    if result is not None:
+        # Example: Extract keywords or classifications from the result
+        # (You'll need to adapt this based on your model's output format)
+        if isinstance(result, list) and len(result) > 0:
+            keywords = result[0].get("label", "")  # Adjust based on your model's output
+            parsed["types"].append(keywords)  # Example: Add extracted keywords to types
 
     # Detect Pokémon names
     for team in data:
