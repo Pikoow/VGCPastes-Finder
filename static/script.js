@@ -9,7 +9,6 @@ themeToggle.addEventListener("click", () => {
     themeIcon.textContent = isDarkMode ? "☀️" : "🌙";
 });
 
-// Search Functionality
 document.getElementById("search-btn").addEventListener("click", async () => {
     const instruction = document.getElementById("instruction").value;
     if (!instruction) return;
