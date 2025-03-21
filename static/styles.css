@@ -1,19 +1,7 @@
-/* Custom scrollbar for chat */
-#chat::-webkit-scrollbar {
-  width: 8px;
-}
-
-#chat::-webkit-scrollbar-track {
-  background: #f1f1f1; /* Light gray */
-}
-
-#chat::-webkit-scrollbar-thumb {
-  background: #888; /* Gray */
-  border-radius: 4px;
-}
-
-#chat::-webkit-scrollbar-thumb:hover {
-  background: #555; /* Dark gray */
+/* Dark mode for the entire body */
+.dark body {
+  background-color: #1a1a1a; /* Darker black for better contrast */
+  color: #e5e7eb; /* Light gray for text */
 }
 
 /* Animation for loading spinner */
@@ -28,17 +16,147 @@
 
 /* Custom styles for Pokémon cards */
 .pokemon-card {
-  background: white;
-  border-radius: 8px;
+  background: #fff7ed; /* Light amber */
+  border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 2px solid #fbbf24; /* Amber border */
 }
 
 .dark .pokemon-card {
-  background: #1f2937; /* Dark gray */
+  background: #2d3748; /* Dark gray */
+  border-color: #4a5568; /* Darker gray */
+  color: #e5e7eb; /* Light gray text for dark mode */
 }
 
 .pokemon-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Dark mode for input fields */
+.dark input {
+  background-color: #2d3748; /* Dark gray */
+  border-color: #4a5568; /* Darker gray */
+  color: #e5e7eb; /* Light gray text */
+}
+
+.dark input::placeholder {
+  color: #a0aec0; /* Lighter gray for placeholder text */
+}
+
+/* Dark mode for buttons */
+.dark button {
+  background-color: #4a5568; /* Dark gray */
+  color: #e5e7eb; /* Light gray text */
+}
+
+.dark button:hover {
+  background-color: #2d3748; /* Slightly lighter gray on hover */
+}
+
+/* Dark mode for links */
+.dark a {
+  color: #63b3ed; /* Light blue for links */
+}
+
+.dark a:hover {
+  color: #4299e1; /* Slightly darker blue on hover */
+}
+
+/* Dark mode for the theme toggle button */
+.dark #theme-toggle {
+  background-color: #4a5568; /* Dark gray */
+  color: #e5e7eb; /* Light gray text */
+}
+
+.dark #theme-toggle:hover {
+  background-color: #2d3748; /* Slightly lighter gray on hover */
+}
+
+/* Dark mode for the loading spinner */
+.dark #loading-spinner {
+  color: #e5e7eb; /* Light gray for spinner */
+}
+
+/* Custom font for nerdy feel */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
+
+.nerdy-font {
+  font-family: "Manrope", sans-serif;
+}
+
+/* Dark mode for the team container */
+.dark #team-container {
+  background-color: #1a1a1a; /* Darker black */
+}
+
+/* Dark mode for the search button */
+.dark #search-btn {
+  background-color: #4a5568; /* Dark gray */
+  color: #e5e7eb; /* Light gray text */
+}
+
+.dark #search-btn:hover {
+  background-color: #2d3748; /* Slightly lighter gray on hover */
+}
+
+/* Dark mode for the search text */
+.dark #search-text {
+  color: #e5e7eb; /* Light gray text */
+}
+
+/* Dark mode for the instruction input */
+.dark #instruction {
+  background-color: #2d3748; /* Dark gray */
+  border-color: #4a5568; /* Darker gray */
+  color: #e5e7eb; /* Light gray text */
+}
+
+.dark #instruction::placeholder {
+  color: #a0aec0; /* Lighter gray for placeholder text */
+}
+
+.dark h1, .dark h2, .dark p, .dark li {
+  color: #e5e7eb;
+}
+
+/* Big Copy Button */
+#copy-all-btn {
+  font-size: 1.25rem; /* Larger text */
+  padding: 0.75rem 1.5rem; /* Bigger padding */
+}
+
+.dark #copy-all-btn {
+  background-color: #48bb78; /* Green */
+  color: #e5e7eb; /* Light gray text */
+}
+
+.dark #copy-all-btn:hover {
+  background-color: #38a169; /* Slightly darker green on hover */
+}
+
+/* Big Copy Button */
+#copy-all-btn {
+  font-size: 1.25rem; /* Larger text */
+  padding: 0.75rem 1.5rem; /* Bigger padding */
+  background-color: #fbbf24; /* Amber color to match the theme */
+  color: #1e293b; /* Dark gray text for contrast */
+  border-radius: 0.5rem; /* Rounded corners */
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+#copy-all-btn:hover {
+  background-color: #f59e0b; /* Slightly darker amber on hover */
+  transform: translateY(-2px); /* Slight lift on hover */
+}
+
+/* Dark mode for the big copy button */
+.dark #copy-all-btn {
+  background-color: #4a5568; /* Dark gray */
+  color: #e5e7eb; /* Light gray text */
+}
+
+.dark #copy-all-btn:hover {
+  background-color: #2d3748; /* Slightly lighter gray on hover */
 }

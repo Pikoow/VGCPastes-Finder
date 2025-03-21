@@ -70,9 +70,11 @@ def fetch_and_save_pokepastes(excel_file, sheet_name, link_column, title_column,
     # Read the Excel file, skipping the first row
     df = pd.read_excel(excel_file, sheet_name=sheet_name, skiprows=1)
 
-    # Check if the link column exists
+    # Check if the link and title columns exist
     if link_column not in df.columns:
         raise ValueError(f"Column '{link_column}' not found in the Excel file.")
+    if title_column not in df.columns:
+        raise ValueError(f"Column '{title_column}' not found in the Excel file.")
 
     # Fetch and save each Poképaste
     for index, row in tqdm(df.iterrows(), total=len(df), desc="Fetching Poképastes"):
@@ -80,11 +82,14 @@ def fetch_and_save_pokepastes(excel_file, sheet_name, link_column, title_column,
         if pd.notna(url):  # Skip empty cells
             content = fetch_pokepaste(url)
             if content:
-                # Use the title as the filename (sanitize to remove invalid characters)
-                title = f"pokepaste_{index + 1}"
-                sanitized_title = "".join(c for c in title if c.isalnum() or c in (" ", "_")).rstrip()
-                filename = f"{sanitized_title}.txt"
-                save_pokepaste(content, filename, folder)
+                # Use the title from the title_column as the filename (sanitize to remove invalid characters)
+                title = row[title_column]
+                if pd.notna(title):  # Check if the title is not empty
+                    sanitized_title = "".join(c for c in str(title) if c.isalnum() or c in (" ", "_")).rstrip()
+                    filename = f"{sanitized_title}.txt"
+                    save_pokepaste(content, filename, folder)
+                else:
+                    logging.warning(f"Empty title for URL: {url}. Skipping this entry.")
 
 def main():
     # Set up command-line argument parsing
@@ -92,7 +97,7 @@ def main():
     parser.add_argument("--excel_file", default="pokepaste_links.xlsx", help="Path to the Excel file.")
     parser.add_argument("--sheet_name", default="SV Regulation G", help="Name of the sheet in the Excel file.")
     parser.add_argument("--link_column", default="Unnamed: 24", help="Name of the column containing the links.")
-    parser.add_argument("--title_column", default="Unnamed: 2", help="Name of the column containing the names.")
+    parser.add_argument("--title_column", default="Click here to visit our Twitter for latest updates!", help="Name of the column containing the names.")
     parser.add_argument("--folder", default="data/raw_pokepastes", help="Folder to save the Poképastes.")
     args = parser.parse_args()
 

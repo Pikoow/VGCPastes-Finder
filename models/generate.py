@@ -98,22 +98,22 @@ def match_team(instruction, team):
     # Check for Pokémon in the instruction
     for p in team["pokemons"]:
         if p["name"].lower() in [name.lower() for name in parsed["pokemon"]]:
-            match_count += 1
+            match_count += 20
 
     # Check for items in the instruction
     for p in team["pokemons"]:
         if p.get("item", "").lower() in [item.lower() for item in parsed["items"]]:
-            match_count += 1
+            match_count += 3
 
     # Check for Tera types in the instruction
     for p in team["pokemons"]:
         if p.get("tera_type", "").lower() in [tera.lower() for tera in parsed["tera_types"]]:
-            match_count += 1
+            match_count += 2
 
     # Check for types in the instruction
     for p in team["pokemons"]:
         if any(type_.lower() in [t.lower() for t in p.get("types", [])] for type_ in parsed["types"]):
-            match_count += 1
+            match_count += 3
 
     # Check for roles in the instruction
     for p in team["pokemons"]:
@@ -157,7 +157,8 @@ def generate_pokepaste(instruction):
                 "ability": p["ability"],
                 "item": p["item"],
                 "moves": [m["name"] if isinstance(m, dict) else m for m in p.get("moves", [])[:4]],
-                "tera_type": p["tera_type"]
+                "tera_type": p["tera_type"],
+                "sprite": p["sprites"]["front_default"]
             }
             for p in team["pokemons"]
         ]
