@@ -167,27 +167,32 @@ def generate_pokepaste(instruction):
     # Calculate match scores for all teams
     match_scores = [match_team(instruction, team) for team in data]
 
-    # Find the team with the highest match score
-    best_match_index = np.argmax(match_scores)
+    # Find the maximum match score
+    max_score = max(match_scores)
 
-    # Extract only the required fields
-    team = data[best_match_index]
-    simplified_team = {
-        "filename": team.get("filename", "unknown"),
-        "pokemons": [
-            {
-                "name": p["name"],
-                "ability": p["ability"],
-                "item": p["item"],
-                "moves": [m["name"] if isinstance(m, dict) else m for m in p.get("moves", [])[:4]],
-                "tera_type": p["tera_type"],
-                "sprite": p["sprites"]["front_default"]
-            }
-            for p in team["pokemons"]
-        ]
-    }
+    # Find all teams with the maximum match score
+    best_teams = [team for team, score in zip(data, match_scores) if score == max_score]
 
-    return simplified_team
+    # Extract only the required fields for each team
+    simplified_teams = []
+    for team in best_teams:
+        simplified_team = {
+            "filename": team.get("filename", "unknown"),
+            "pokemons": [
+                {
+                    "name": p["name"],
+                    "ability": p["ability"],
+                    "item": p["item"],
+                    "moves": [m["name"] if isinstance(m, dict) else m for m in p.get("moves", [])[:4]],
+                    "tera_type": p["tera_type"],
+                    "sprite": p["sprites"]["front_default"]
+                }
+                for p in team["pokemons"]
+            ]
+        }
+        simplified_teams.append(simplified_team)
+
+    return simplified_teams
 
 if __name__ == "__main__":
     instruction = "I want a team with a Pikachu holding a Light Ball and using Thunderbolt. Include a strong attacker and a Water-type Pokémon."

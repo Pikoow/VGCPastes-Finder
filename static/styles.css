@@ -117,7 +117,7 @@
   color: #a0aec0; /* Lighter gray for placeholder text */
 }
 
-.dark h1, .dark h2, .dark p, .dark li {
+.dark h1, .dark h2, .dark h3, .dark h4, .dark p, .dark li {
   color: #e5e7eb;
 }
 
