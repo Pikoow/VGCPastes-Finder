@@ -160,3 +160,22 @@
 .dark #copy-all-btn:hover {
   background-color: #2d3748; /* Slightly lighter gray on hover */
 }
+
+/* Modal styles */
+#format-help-modal {
+  z-index: 1000;
+}
+
+#format-help-modal div {
+  max-width: 90%;
+  width: 100%;
+}
+
+#format-help-modal ul {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+#format-help-modal button {
+  margin-top: 1rem;
+}

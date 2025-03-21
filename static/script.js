@@ -106,3 +106,23 @@ document.getElementById("search-btn").addEventListener("click", async () => {
         loadingSpinner.classList.add("hidden");
     }
 });
+
+// Handle the format help modal
+const formatHelpBtn = document.getElementById("format-help-btn");
+const formatHelpModal = document.getElementById("format-help-modal");
+const closeModalBtn = document.getElementById("close-modal-btn");
+
+formatHelpBtn.addEventListener("click", () => {
+    formatHelpModal.classList.remove("hidden");
+});
+
+closeModalBtn.addEventListener("click", () => {
+    formatHelpModal.classList.add("hidden");
+});
+
+// Close the modal when clicking outside of it
+window.addEventListener("click", (event) => {
+    if (event.target === formatHelpModal) {
+        formatHelpModal.classList.add("hidden");
+    }
+});
