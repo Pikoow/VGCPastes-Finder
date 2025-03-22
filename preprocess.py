@@ -2,7 +2,7 @@ import os
 import json
 import logging
 import requests
-from tqdm import tqdm  # For progress bar
+from tqdm import tqdm
 
 # PokeAPI base URLs
 POKEAPI_POKEMON_URL = "https://pokeapi.co/api/v2/pokemon/"

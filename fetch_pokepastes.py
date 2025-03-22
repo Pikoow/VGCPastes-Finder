@@ -4,9 +4,9 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 import logging
-from tqdm import tqdm  # For progress bar
+from tqdm import tqdm
 import argparse
-import shutil  # For folder cleanup
+import shutil
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
