@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from models.generate import generate_pokepaste
 
-app = Flask(__name__, template_folder="../templates", static_folder="../static")
+app = Flask(__name__)
 
 @app.route("/generate", methods=["POST"])
 def generate():
