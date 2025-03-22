@@ -1,2 +1,5 @@
 __pycache__/
 data/raw_pokepastes/
+data/processed_data.json
+data/team_attributes.json
+.vercel
