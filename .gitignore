@@ -1,6 +1,6 @@
 __pycache__/
 data/raw_pokepastes/
-data/recommender.pkl
+models/recommender.pkl
 data/processed_data.json
 data/team_attributes.json
 .vercel
