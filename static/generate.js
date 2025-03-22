@@ -1,6 +1,6 @@
 // Load processed data
 let data;
-fetch('data/processed_data.json')
+fetch('https://pikoow.github.io/VGCPastes-Finder/data/processed_data.json')
     .then(response => response.json())
     .then(jsonData => {
         data = jsonData;
