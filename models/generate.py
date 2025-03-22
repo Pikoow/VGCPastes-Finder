@@ -3,41 +3,6 @@ import pickle
 from sklearn.metrics.pairwise import cosine_similarity
 import requests
 import re
-import os
-
-# GitHub raw file URLs
-# RECOMMENDER_URL = "https://raw.githubusercontent.com/Pikoow/pokepaste-files/main/recommender.pkl"
-# PROCESSED_DATA_URL = "https://raw.githubusercontent.com/Pikoow/pokepaste-files/main/processed_data.json"
-
-# Paths to the files in the /tmp directory
-# RECOMMENDER_PATH = "/tmp/recommender.pkl"
-# PROCESSED_DATA_PATH = "/tmp/processed_data.json"
-
-# def download_file(url, path):
-#    """Download a file from a URL and save it to the specified path."""
-#    response = requests.get(url)
-#    response.raise_for_status()
-#    with open(path, "wb") as f:
-#        f.write(response.content)
-
-#def load_files():
-    # Check if files are already downloaded
-#    if not all(os.path.exists(path) for path in [RECOMMENDER_PATH, PROCESSED_DATA_PATH]):
-        # Download files from GitHub
-#        download_file(RECOMMENDER_URL, RECOMMENDER_PATH)
-#        download_file(PROCESSED_DATA_URL, PROCESSED_DATA_PATH)
-
-    # Load the files
-#    with open(RECOMMENDER_PATH, "rb") as f:
-#        vectorizer = pickle.load(f)
-
-#    with open(PROCESSED_DATA_PATH, "r") as f:
-#        data = json.load(f)
-
-#    return vectorizer, data
-
-# Load files once and reuse them
-#vectorizer, data = load_files()
 
 # Load models
 with open("models/recommender.pkl", "rb") as f:
