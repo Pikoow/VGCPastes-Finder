@@ -1,7 +1,6 @@
 import json
 import pickle
 from sklearn.metrics.pairwise import cosine_similarity
-from transformers import pipeline
 import requests
 import re
 
