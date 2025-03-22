@@ -1,3 +1,10 @@
+/* Custom font for nerdy feel */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
+
+body {
+  font-family: "Manrope", sans-serif;
+}
+
 /* Dark mode for the entire body */
 .dark body {
   background-color: #1a1a1a; /* Darker black for better contrast */
@@ -32,6 +39,27 @@
 .pokemon-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Smaller Pokémon cards for other teams */
+.pokemon-card.small {
+  padding: 0.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pokemon-card.small img {
+  width: 2rem;
+  height: 2rem;
+}
+
+.pokemon-card.small h4 {
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.pokemon-card.small h5 {
+  font-size: 0.75rem;
 }
 
 /* Dark mode for input fields */
@@ -77,13 +105,6 @@
 /* Dark mode for the loading spinner */
 .dark #loading-spinner {
   color: #e5e7eb; /* Light gray for spinner */
-}
-
-/* Custom font for nerdy feel */
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
-
-.nerdy-font {
-  font-family: "Manrope", sans-serif;
 }
 
 /* Dark mode for the team container */
@@ -161,21 +182,12 @@
   background-color: #2d3748; /* Slightly lighter gray on hover */
 }
 
-/* Modal styles */
-#format-help-modal {
-  z-index: 1000;
+/* Fade-in animation for format help */
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 
-#format-help-modal div {
-  max-width: 90%;
-  width: 100%;
-}
-
-#format-help-modal ul {
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-#format-help-modal button {
-  margin-top: 1rem;
+.animate-fade-in {
+  animation: fade-in 0.3s ease-in-out;
 }

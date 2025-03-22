@@ -9,6 +9,15 @@ themeToggle.addEventListener("click", () => {
     themeIcon.textContent = isDarkMode ? "☀️" : "🌙";
 });
 
+// Format Help Toggle
+const formatHelpBtn = document.getElementById("format-help-btn");
+const formatHelp = document.getElementById("format-help");
+
+formatHelpBtn.addEventListener("click", () => {
+    formatHelp.classList.toggle("hidden");
+    formatHelp.classList.toggle("animate-fade-in");
+});
+
 document.getElementById("search-btn").addEventListener("click", async () => {
     const instruction = document.getElementById("instruction").value;
     if (!instruction) return;
@@ -27,7 +36,7 @@ document.getElementById("search-btn").addEventListener("click", async () => {
 
     // Send request to serverless function
     try {
-        const response = await fetch("/api/generate", {
+        const response = await fetch("/generate", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -41,6 +50,12 @@ document.getElementById("search-btn").addEventListener("click", async () => {
 
         const data = await response.json();
 
+        // Shuffle the teams array to randomize the selection
+        const shuffledTeams = shuffleArray(data);
+
+        // Limit the number of teams to 7
+        const teamsToDisplay = shuffledTeams.slice(0, 7);
+
         // Clear any existing title
         const existingTitle = document.querySelector(".team-title");
         if (existingTitle) {
@@ -48,7 +63,7 @@ document.getElementById("search-btn").addEventListener("click", async () => {
         }
 
         // Display the first team as the main team
-        const mainTeam = data[0];
+        const mainTeam = teamsToDisplay[0];
         const title = `<h2 class="team-title text-3xl font-bold text-center mb-8 text-gray-800 dark:text-gray-100 font-serif">${mainTeam.filename.split('.')[0]}</h2>`;
         teamContainer.insertAdjacentHTML("beforebegin", title);
 
@@ -56,20 +71,21 @@ document.getElementById("search-btn").addEventListener("click", async () => {
         displayTeam(mainTeam, teamContainer);
 
         // Display other teams as smaller cards below the main team
-        if (data.length > 1) {
-            const otherTeamsTitle = `<h3 class="text-xl font-bold text-center col-span-full mb-4 text-gray-800 dark:text-gray-100">Other Matching Teams</h3>`;
+        if (teamsToDisplay.length > 1) {
+            const otherTeamsNumberTitle = `<h3 class="text-xl font-bold text-center col-span-full mb-4 text-gray-800 dark:text-gray-100">${shuffledTeams.length} other teams match that query</h3>`;
+            const otherTeamsTitle = `<h2 class="text-xl font-bold text-center col-span-full mb-4 text-gray-800 dark:text-gray-100">Other similar teams</h2>`;
+            teamContainer.insertAdjacentHTML("beforeend", otherTeamsNumberTitle);
             teamContainer.insertAdjacentHTML("beforeend", otherTeamsTitle);
 
-            data.slice(1).forEach(team => {
+            teamsToDisplay.slice(1).forEach(team => {
                 const teamCard = document.createElement("div");
-                teamCard.className = "pokemon-card p-3 rounded-lg shadow-md relative bg-amber-100 dark:bg-gray-700";
+                teamCard.className = "pokemon-card p-2 rounded-lg shadow-md relative bg-amber-100 dark:bg-gray-700";
                 teamCard.innerHTML = `
-                    <h4 class="text-lg font-bold text-center mb-4 text-gray-800 dark:text-gray-100">${team.filename.split('.')[0]}</h4>
-                    <div class="grid grid-cols-2 gap-2">
+                    <h4 class="text-sm font-bold text-center mb-2 text-gray-800 dark:text-gray-100">${team.filename.split('.')[0]}</h4>
+                    <div class="flex justify-center gap-1">
                         ${team.pokemons.map(pokemon => `
                             <div class="flex flex-col items-center">
-                                <img src="${pokemon.sprite}" alt="${pokemon.name}" class="w-12 h-12 mb-1">
-                                <h5 class="font-bold text-xs text-center">${pokemon.name}</h5>
+                                <img src="${pokemon.sprite}" alt="${pokemon.name}" class="w-8 h-8">
                             </div>
                         `).join("")}
                     </div>
@@ -98,6 +114,15 @@ document.getElementById("search-btn").addEventListener("click", async () => {
         loadingSpinner.classList.add("hidden");
     }
 });
+
+// Helper function to shuffle an array
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
 
 function displayTeam(team, container) {
     team.pokemons.forEach(pokemon => {
@@ -133,23 +158,3 @@ function displayTeam(team, container) {
         container.innerHTML += pokemonCard;
     });
 }
-
-// Handle the format help modal
-const formatHelpBtn = document.getElementById("format-help-btn");
-const formatHelpModal = document.getElementById("format-help-modal");
-const closeModalBtn = document.getElementById("close-modal-btn");
-
-formatHelpBtn.addEventListener("click", () => {
-    formatHelpModal.classList.remove("hidden");
-});
-
-closeModalBtn.addEventListener("click", () => {
-    formatHelpModal.classList.add("hidden");
-});
-
-// Close the modal when clicking outside of it
-window.addEventListener("click", (event) => {
-    if (event.target === formatHelpModal) {
-        formatHelpModal.classList.add("hidden");
-    }
-});

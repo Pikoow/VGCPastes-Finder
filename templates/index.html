@@ -37,30 +37,24 @@
             </button>
         </div>
 
-        <div id="format-help-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div class="bg-amber-50 dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-md">
-                <h2 class="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">How to Format Your Query</h2>
-                <p class="text-gray-600 dark:text-gray-300">
-                    To get the best results, include the following in your query:
-                    <ul class="list-disc list-inside mt-2">
-                        <li><strong>Pokémon names</strong> (e.g., `Pikachu`, `Charizard`)</li>
-                        <li><strong>Items</strong> (e.g., `Light Ball`, `Choice Scarf`)</li>
-                        <li><strong>Tera types</strong> (e.g., `Tera Water`, `Tera Fire`)</li>
-                        <li><strong>Types</strong> (e.g., `Water-type`, `Fire-type`)</li>
-                        <li><strong>Roles</strong> (e.g., `strong attacker`, `defensive`)</li>
-                    </ul>
-                    <p class="mt-2 text-gray-600 dark:text-gray-300">
-                        Example queries:
-                        <ul class="list-disc list-inside mt-2">
-                            <li>`Pikachu holding Light Ball`</li>
-                            <li>`Water-type team with Pikachu`</li>
-                            <li>`Pikachu with Tera Electric`</li>
-                            <li>`Strong attacker with Fire-type Pokémon`</li>
-                        </ul>
-                    </p>
-                </p>
-                <button id="close-modal-btn" class="mt-4 bg-amber-500 p-2 rounded-lg hover:bg-amber-600 text-white transition-colors">Close</button>
-            </div>
+        <!-- Links -->
+        <div class="text-center mt-5 mb-5">
+            <a href="https://tinyurl.com/vgcpastes2023" target="_blank" class="text-amber-600 hover:text-amber-700 mr-4 dark:text-amber-400 dark:hover:text-amber-300">VGC Pastes Excel Sheet</a>
+            <a href="https://x.com/VGCPastes" target="_blank" class="text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300">Follow us on Twitter</a>
+        </div>
+
+        <!-- Format Help Section -->
+        <div id="format-help" class="hidden mt-4 p-4 bg-amber-100 dark:bg-gray-700 rounded-lg shadow-md">
+            <h3 class="text-lg font-bold mb-2 text-gray-800 dark:text-gray-100">Format Help</h3>
+            <p class="text-sm text-gray-700 dark:text-gray-300">You can ask for teams with specific Pokémon, items, Tera types, types, and roles. Here are some examples:</p>
+            <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mt-2">
+                <li><strong>Pokémon:</strong> "Pikachu", "Charizard"</li>
+                <li><strong>Items:</strong> "Pikachu holding Light Ball", "Charizard with Choice Scarf"</li>
+                <li><strong>Tera Types:</strong> "Pikachu with Tera Electric", "Charizard with Tera Fire"</li>
+                <li><strong>Types:</strong> "Water-type team", "Fire-type Pokémon"</li>
+                <li><strong>Roles:</strong> "strong attacker", "defensive Pokémon", "speedy Water-type"</li>
+            </ul>
+            <p class="text-sm text-gray-700 dark:text-gray-300 mt-2">Example: "I want a team with a Pikachu holding a Light Ball and using Thunderbolt. Include a strong attacker and a Water-type Pokémon."</p>
         </div>
 
         <!-- Updated Grid Layout: 3 cards per row on large screens -->
@@ -73,12 +67,6 @@
             <button id="copy-all-btn" class="bg-green-600 p-3 rounded-lg hover:bg-green-700 text-white transition-colors text-lg">
                 Copy Poképaste
             </button>
-        </div>
-
-        <!-- Links moved to the bottom -->
-        <div class="text-center mt-8">
-            <a href="https://tinyurl.com/vgcpastes2023" target="_blank" class="text-amber-600 hover:text-amber-700 mr-4 dark:text-amber-400 dark:hover:text-amber-300">VGC Pastes Excel Sheet</a>
-            <a href="https://x.com/VGCPastes" target="_blank" class="text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300">Follow us on Twitter</a>
         </div>
     </div>
     <script src="https://unpkg.com/@pkmn/img"></script>
