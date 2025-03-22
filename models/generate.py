@@ -6,8 +6,8 @@ import re
 import os
 
 # GitHub raw file URLs
-RECOMMENDER_URL = "https://raw.githubusercontent.com/your-username/pokepaste-files/main/recommender.pkl"
-PROCESSED_DATA_URL = "https://raw.githubusercontent.com/your-username/pokepaste-files/main/processed_data.json"
+RECOMMENDER_URL = "https://raw.githubusercontent.com/Pikoow/pokepaste-files/main/recommender.pkl"
+PROCESSED_DATA_URL = "https://raw.githubusercontent.com/Pikoow/pokepaste-files/main/processed_data.json"
 
 # Paths to the files in the /tmp directory
 RECOMMENDER_PATH = "/tmp/recommender.pkl"
