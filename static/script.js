@@ -34,24 +34,12 @@ document.getElementById("search-btn").addEventListener("click", async () => {
     searchText.textContent = "Searching...";
     loadingSpinner.classList.remove("hidden");
 
-    // Send request to serverless function
     try {
-        const response = await fetch("/generate", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ instruction }),
-        });
-
-        if (!response.ok) {
-            throw new Error("Failed to generate team");
-        }
-
-        const data = await response.json();
+        // Generate the team directly in the browser
+        const teams = generatePokepaste(instruction);
 
         // Shuffle the teams array to randomize the selection
-        const shuffledTeams = shuffleArray(data);
+        const shuffledTeams = shuffleArray(teams);
 
         // Limit the number of teams to 7
         const teamsToDisplay = shuffledTeams.slice(0, 7);
@@ -72,7 +60,7 @@ document.getElementById("search-btn").addEventListener("click", async () => {
 
         // Display other teams as smaller cards below the main team
         if (teamsToDisplay.length > 1) {
-            const otherTeamsNumberTitle = `<h3 class="text-xl font-bold text-center col-span-full mb-4 text-gray-800 dark:text-gray-100">${shuffledTeams.length} other teams match that query</h3>`;
+            const otherTeamsNumberTitle = `<h3 class="text-xl font-bold text-center col-span-full mb-4 text-gray-800 dark:text-gray-100">${shuffledTeams.length - 1} other teams match that query</h3>`;
             const otherTeamsTitle = `<h2 class="text-xl font-bold text-center col-span-full mb-4 text-gray-800 dark:text-gray-100">Other similar teams</h2>`;
             teamContainer.insertAdjacentHTML("beforeend", otherTeamsNumberTitle);
             teamContainer.insertAdjacentHTML("beforeend", otherTeamsTitle);
