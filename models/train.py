@@ -125,8 +125,4 @@ tfidf_matrix = vectorizer.fit_transform(team_descriptions)
 with open("models/recommender.pkl", "wb") as f:
     pickle.dump(vectorizer, f)
 
-# Fine-tune an NLP model (simplified example)
-nlp_model = pipeline("text-classification", model="distilbert-base-uncased")
-nlp_model.save_pretrained("models/nlp_model")
-
 print("Training complete! Models saved to the 'models' folder.")

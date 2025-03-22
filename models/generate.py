@@ -10,8 +10,6 @@ import re
 with open("models/recommender.pkl", "rb") as f:
     vectorizer = pickle.load(f)
 
-nlp_model = pipeline("text-classification", model="models/nlp_model")
-
 # Load processed data
 with open("data/processed_data.json", "r") as f:
     data = json.load(f)
@@ -40,14 +38,6 @@ def fetch_all_items():
     return names
 
 all_items = fetch_all_items()
-
-def extract_keywords(instruction):
-    """
-    Extract keywords from the instruction using the NLP model.
-    """
-    # Use the NLP model to classify the instruction (if needed)
-    attributes = nlp_model(instruction)
-    return attributes
 
 def parse_instruction(instruction):
     """
