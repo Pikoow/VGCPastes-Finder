@@ -21,7 +21,7 @@ async function fetchAllItems() {
             throw new Error("Could not find the BattleItems object in the JavaScript file.");
         }
         const items = match[1];
-        const names = items.match(/name:"([^"]+)"/g).map(name => name.slice(7, -1));
+        const names = items.match(/name:"([^"]+)"/g).map(name => name.slice(6, -1));
         return names;
     } catch (error) {
         console.error('Error fetching items:', error);
@@ -45,7 +45,7 @@ function parseInstruction(instruction) {
     // Detect Pokémon names
     data.forEach(team => {
         team.pokemons.forEach(p => {
-            if (p.name.toLowerCase().includes(instruction.toLowerCase()) && !parsed.pokemon.includes(p.name)) {
+            if (instruction.toLowerCase().includes(p.name.toLowerCase()) && !parsed.pokemon.includes(p.name)) {
                 parsed.pokemon.push(p.name);
             }
         });
@@ -55,7 +55,9 @@ function parseInstruction(instruction) {
     parsed.pokemon.forEach(pokemon => {
         allItems.forEach(item => {
             if (instruction.toLowerCase().includes(`${pokemon.toLowerCase()} with ${item.toLowerCase()}`) ||
-                instruction.toLowerCase().includes(`${pokemon.toLowerCase()} holding ${item.toLowerCase()}`)) {
+                instruction.toLowerCase().includes(`${pokemon.toLowerCase()} holding ${item.toLowerCase()}`) ||
+                instruction.toLowerCase().includes(`${pokemon.toLowerCase()} with a ${item.toLowerCase()}`) ||
+                instruction.toLowerCase().includes(`${pokemon.toLowerCase()} holding a ${item.toLowerCase()}`)) {
                 parsed.pokemon_with_items.push({ pokemon, item });
             }
         });

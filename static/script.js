@@ -25,14 +25,18 @@ document.getElementById("search-btn").addEventListener("click", async () => {
     // Clear previous team and copy button
     const teamContainer = document.getElementById("team-container");
     const copyAllContainer = document.getElementById("copy-all-container");
+    const copySuccessMessage = document.getElementById("copy-success-message");
     teamContainer.innerHTML = ""; // Clear the container
     copyAllContainer.classList.add("hidden");
+    copySuccessMessage.classList.add("hidden");
 
     // Show loading spinner
     const searchText = document.getElementById("search-text");
     const loadingSpinner = document.getElementById("loading-spinner");
     searchText.textContent = "Searching...";
     loadingSpinner.classList.remove("hidden");
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     try {
         // Generate the team directly in the browser
@@ -91,7 +95,10 @@ document.getElementById("search-btn").addEventListener("click", async () => {
                 return `${pokemon.name} @ ${pokemon.item || "No Item"}\nAbility: ${pokemon.ability || "Unknown"}\nTera Type: ${pokemon.tera_type}\n- ${pokemon.moves.join("\n- ")}`;
             }).join("\n\n");
             navigator.clipboard.writeText(teamText).then(() => {
-                alert("Entire team copied to clipboard!");
+                copySuccessMessage.classList.remove("hidden");
+                setTimeout(() => {
+                    copySuccessMessage.classList.add("hidden");
+                }, 2000); // Hide the message after 2 seconds
             });
         });
     } catch (error) {

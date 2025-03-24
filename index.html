@@ -25,8 +25,14 @@
             </button>
         </div>
 
-        <h1 class="text-5xl font-bold text-center mb-8 text-gray-800 dark:text-gray-100 font-serif">VGC Pastes Finder</h1>
-        <div class="flex justify-center mb-8">
+        <!-- Title with Logo -->
+        <div class="flex justify-center items-center mb-8">
+            <img src="static/assets/logo_vgcpastes.png" alt="Poké Ball" class="w-12 h-12 mr-4">
+            <h1 class="text-5xl font-bold text-center text-gray-800 dark:text-gray-100 font-serif">VGC Pastes Finder</h1>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="flex justify-center mb-6">
             <input type="text" id="instruction" placeholder="Enter your team request (e.g., 'Water-type team with Pikachu')" class="w-1/2 p-2 rounded-l-lg bg-amber-100 border border-amber-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
             <button id="search-btn" class="bg-amber-500 p-2 rounded-r-lg hover:bg-amber-600 flex items-center text-white transition-colors">
                 <span id="search-text">Search</span>
@@ -38,7 +44,7 @@
         </div>
 
         <!-- Links -->
-        <div class="text-center mt-5 mb-5">
+        <div class="text-center mt-4 mb-4">
             <a href="https://tinyurl.com/vgcpastes2023" target="_blank" class="text-amber-600 hover:text-amber-700 mr-4 dark:text-amber-400 dark:hover:text-amber-300">VGC Pastes Excel Sheet</a>
             <a href="https://x.com/VGCPastes" target="_blank" class="text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300">Follow us on Twitter</a>
         </div>
@@ -57,7 +63,7 @@
             <p class="text-sm text-gray-700 dark:text-gray-300 mt-2">Example: "I want a team with a Pikachu holding a Light Ball and using Thunderbolt. Include a strong attacker and a Water-type Pokémon."</p>
         </div>
 
-        <!-- Updated Grid Layout: 3 cards per row on large screens -->
+        <!-- Team Container -->
         <div id="team-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <!-- Team will be displayed here -->
         </div>
@@ -67,6 +73,7 @@
             <button id="copy-all-btn" class="bg-green-600 p-3 rounded-lg hover:bg-green-700 text-white transition-colors text-lg">
                 Copy Poképaste
             </button>
+            <p id="copy-success-message" class="text-green-600 dark:text-green-400 mt-2 hidden">Team copied to clipboard!</p>
         </div>
     </div>
     <script src="static/generate.js"></script>
