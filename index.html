@@ -49,18 +49,65 @@
             <a href="https://x.com/VGCPastes" target="_blank" class="text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300">Follow us on Twitter</a>
         </div>
 
-        <!-- Format Help Section -->
+        <!-- Advanced Team Search Help Section -->
         <div id="format-help" class="hidden mt-4 p-4 bg-amber-100 dark:bg-gray-700 rounded-lg shadow-md">
-            <h3 class="text-lg font-bold mb-2 text-gray-800 dark:text-gray-100">Format Help</h3>
-            <p class="text-sm text-gray-700 dark:text-gray-300">You can ask for teams with specific Pokémon, items, Tera types, types, and roles. Here are some examples:</p>
-            <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mt-2">
-                <li><strong>Pokémon:</strong> "Pikachu", "Charizard"</li>
-                <li><strong>Items:</strong> "Pikachu holding Light Ball", "Charizard with Choice Scarf"</li>
-                <li><strong>Tera Types:</strong> "Pikachu with Tera Electric", "Charizard with Tera Fire"</li>
-                <li><strong>Types:</strong> "Water-type team", "Fire-type Pokémon"</li>
-                <li><strong>Roles:</strong> "strong attacker", "defensive Pokémon", "speedy Water-type"</li>
-            </ul>
-            <p class="text-sm text-gray-700 dark:text-gray-300 mt-2">Example: "I want a team with a Pikachu holding a Light Ball and using Thunderbolt. Include a strong attacker and a Water-type Pokémon."</p>
+            <h3 class="text-lg font-bold mb-2 text-gray-800 dark:text-gray-100">Advanced Team Search Guide</h3>
+            <p class="text-sm text-gray-700 dark:text-gray-300 mb-3">Find competitive teams by searching with these supported criteria:</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Left Column -->
+                <div>
+                    <h4 class="font-semibold text-gray-800 dark:text-gray-200 mb-1">Pokémon Attributes</h4>
+                    <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                        <li><strong>Specific Pokémon:</strong> Flutter Mane, Urshifu-Rapid-Strike</li>
+                        <li><strong>Held Items:</strong> Kyogre with Choice Specs, Iron Hands holding Assault Vest</li>
+                        <li><strong>Tera Types:</strong> Urshifu with Tera Water, Tera Steel Gholdengo</li>
+                        <li><strong>Abilities:</strong> Tornadus with Prankster, Pokémon with Drizzle</li>
+                        <li><strong>Moves:</strong> Kyogre with Water Spout, Team with Fake Out</li>
+                    </ul>
+                    
+                    <h4 class="font-semibold text-gray-800 dark:text-gray-200 mt-3 mb-1">Type & Role Filters</h4>
+                    <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                        <li><strong>Types:</strong> Water type, Steel-type Pokémon</li>
+                        <li><strong>Roles:</strong> 
+                            <span class="block ml-4">• Physical attacker (Atk ≥100)</span>
+                            <span class="block ml-4">• Special attacker (SpAtk ≥100)</span>
+                            <span class="block ml-4">• Defensive (Def ≥100)</span>
+                            <span class="block ml-4">• Speedy (Speed ≥100)</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Right Column -->
+                <div>
+                    <h4 class="font-semibold text-gray-800 dark:text-gray-200 mb-1">Team Archetypes</h4>
+                    <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                        <li><strong>Weather Teams:</strong> Rain team, Sun team</li>
+                        <li><strong>Trick Room:</strong> Trick Room team, Slow team</li>
+                        <li><strong>Playstyles:</strong> Hyper offense, Stall team</li>
+                    </ul>
+                    
+                    <h4 class="font-semibold text-gray-800 dark:text-gray-200 mt-3 mb-1">Complex Query Examples</h4>
+                    <ul class="list-none text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                        <li class="bg-amber-50 dark:bg-gray-600 p-2 rounded">
+                            Rain team with Kyogre and Swift Swim users
+                        </li>
+                        <li class="bg-amber-50 dark:bg-gray-600 p-2 rounded">
+                            Stall team with Blissey and Toxapex
+                        </li>
+                        <li class="bg-amber-50 dark:bg-gray-600 p-2 rounded">
+                            Team with Tera Fire Tsareena and Power Whip
+                        </li>
+                        <li class="bg-amber-50 dark:bg-gray-600 p-2 rounded">
+                            Physical attacker Dragonite with Extreme Speed
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="mt-3 p-3 bg-amber-50 dark:bg-gray-600 rounded text-sm text-gray-700 dark:text-gray-300">
+                <strong>Tip:</strong> Combine multiple filters like: Rain team with Pelipper and Swift Swim Barraskewda holding Choice Band
+            </div>
         </div>
 
         <!-- Team Container -->
