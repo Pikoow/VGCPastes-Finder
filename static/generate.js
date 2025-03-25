@@ -44,7 +44,6 @@ async function initializeData() {
     allMoves = [...new Set(allMoves)];
 }
 
-// Optimized item fetch with caching
 async function fetchAllItems() {
     if (allItems.length > 0) return allItems; // Return cached items
     
@@ -63,7 +62,6 @@ async function fetchAllItems() {
     }
 }
 
-// Optimized move fetch with caching
 async function fetchAllMoves() {
     if (allMoves.length > 0) return allMoves; // Return cached moves
     
@@ -82,7 +80,6 @@ async function fetchAllMoves() {
     }
 }
 
-// Pre-load data
 async function loadAllData() {
     await Promise.all([fetchAllItems(), fetchAllMoves()]);
     await initializeData();
@@ -94,7 +91,6 @@ async function loadAllData() {
     console.log('Data loaded - Items:', allItems);*/
 }
 
-// Start loading all data
 loadAllData().catch(console.error);
 
 function parseInstruction(instruction) {
@@ -109,36 +105,20 @@ function parseInstruction(instruction) {
         roles: [],
         moves: [],
         abilities: [],
-        team_composition: []
+        team_composition: [],
     };
 
+    const types = ["steel", "fighting", "dragon", "water", "electric", "fairy", 
+        "fire", "ice", "bug", "normal", "grass", "poison", "psychic", 
+        "rock", "ground", "ghost", "flying", "dark"];
+    const teraTypes = ["steel", "fighting", "dragon", "water", "electric",
+        "electrik", "fairy", "fire", "ice", "bug", "insect", "normal",
+        "grass", "poison", "psychic", "rock", "ground", "ghost", "flying",
+        "dark", "stellar"];
+    
     const lowerInstruction = instruction.toLowerCase();
-    const words = lowerInstruction.split(/\s+/);
-
-    // Detect Pokémon names
-    parsed.pokemon = [...pokemonNames].filter(name => 
-        lowerInstruction.includes(name)
-    ).map(name => data[0].pokemons.find(p => p.name.toLowerCase() === name)?.name || name);
-
-    // Detect Pokémon with specific items
-    parsed.pokemon.forEach(pokemon => {
-        const pokemonLower = pokemon.toLowerCase();
-        allItems.forEach(item => {
-            if (words.some((word, i) => {
-                const prevWord = i > 0 ? words[i-1] : '';
-                const nextWord = i < words.length-1 ? words[i+1] : '';
-                
-                return (word === item.toLowerCase() && 
-                       (prevWord === 'with' || prevWord === 'holding') &&
-                       (nextWord === pokemonLower || prevWord === pokemonLower));
-            })) {
-                parsed.pokemon_with_items.push({ pokemon, item });
-            }
-        });
-    });
 
     // Detect Pokémon with specific Tera types
-    const teraTypes = ["steel", "fighting", "dragon", "water", "electric", "electrik", "fairy", "fire", "ice", "bug", "insect", "normal", "grass", "poison", "psychic", "rock", "ground", "ghost", "flying", "dark", "stellar"];
     teraTypes.forEach(tera => {
         if (lowerInstruction.includes(`tera ${tera}`)) {
             parsed.pokemon.forEach(pokemon => {
@@ -149,32 +129,19 @@ function parseInstruction(instruction) {
         }
     });
 
-    // Detect Pokémon with specific abilities
-    [...allAbilities].forEach(ability => {
-        if (lowerInstruction.includes(ability)) {
-            parsed.abilities.push(ability);
-            
-            parsed.pokemon.forEach(pokemon => {
-                if (lowerInstruction.includes(`${pokemon.toLowerCase()} with ${ability}`)) {
-                    parsed.pokemon_with_abilities.push({ pokemon, ability });
-                }
-            });
+    // Detect specific moves (additional checks beyond the "with" clause)
+    allMoves.forEach(move => {
+        if (move && lowerInstruction.includes(move) && 
+            !parsed.pokemon_with_moves.some(m => m.move === move)) {
+            parsed.moves.push(move);
         }
     });
 
-    // Detect specific moves
-    allMoves.forEach(move => {
-        if (lowerInstruction.includes(move)) {
-            parsed.moves.push(move);
-            
-            // Check if move is associated with a specific Pokémon
-            parsed.pokemon.forEach(pokemon => {
-                const pokemonLower = pokemon.toLowerCase();
-                if (lowerInstruction.includes(`${pokemonLower} with ${move}`) ||
-                    lowerInstruction.includes(`${pokemonLower} knows ${move}`)) {
-                    parsed.pokemon_with_moves.push({ pokemon, move });
-                }
-            });
+    // Detect abilities (additional checks beyond the "with" clause)
+    [...allAbilities].forEach(ability => {
+        if (ability && lowerInstruction.includes(ability) && 
+            !parsed.pokemon_with_abilities.some(a => a.ability === ability)) {
+            parsed.abilities.push(ability);
         }
     });
 
@@ -199,9 +166,9 @@ function parseInstruction(instruction) {
     });
 
     // Detect types
-    const types = ["steel", "fighting", "dragon", "water", "electric", "electrik", "fairy", "fire", "ice", "bug", "insect", "normal", "grass", "poison", "psychic", "rock", "ground", "ghost", "flying", "dark"];
     types.forEach(type => {
-        if (instruction.toLowerCase().includes(`${type.toLowerCase()} type`) || instruction.toLowerCase().includes(`${type.toLowerCase()}-type`)) {
+        if (instruction.toLowerCase().includes(`${type.toLowerCase()} type`) || 
+            instruction.toLowerCase().includes(`${type.toLowerCase()}-type`)) {
             parsed.types.push(type);
         }
     });

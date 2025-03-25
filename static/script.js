@@ -36,7 +36,7 @@ document.getElementById("search-btn").addEventListener("click", async () => {
     searchText.textContent = "Searching...";
     loadingSpinner.classList.remove("hidden");
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     try {
         // Generate the team directly in the browser
@@ -103,6 +103,7 @@ document.getElementById("search-btn").addEventListener("click", async () => {
         });
     } catch (error) {
         teamContainer.innerHTML = `<div class="text-red-500 text-center nerdy-font">Sorry, something went wrong. Please try again.</div>`;
+        console.log(error);
     } finally {
         // Hide loading spinner
         searchText.textContent = "Search";
