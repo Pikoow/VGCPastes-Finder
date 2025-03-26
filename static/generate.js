@@ -266,7 +266,7 @@ function matchTeam(instruction, team) {
     // Check for Pokémon in the instruction
     team.pokemons.forEach(p => {
         if (parsed.pokemon.map(name => name.toLowerCase()).includes(p.name.toLowerCase())) {
-            matchCount += 10;
+            matchCount += 100;
         }
     });
 
@@ -283,7 +283,7 @@ function matchTeam(instruction, team) {
     parsed.pokemon_with_tera.forEach(pokemonTera => {
         team.pokemons.forEach(p => {
             if (p.name.toLowerCase() === pokemonTera.pokemon.toLowerCase() && p.tera_type?.toLowerCase() === pokemonTera.tera_type.toLowerCase()) {
-                matchCount += 30;
+                matchCount += 50;
             }
         });
     });
@@ -292,7 +292,7 @@ function matchTeam(instruction, team) {
     parsed.pokemon_with_abilities.forEach(pokemonAbility => {
         team.pokemons.forEach(p => {
             if (p.name.toLowerCase() === pokemonAbility.pokemon.toLowerCase() && p.ability?.toLowerCase() === pokemonAbility.ability.toLowerCase()) {
-                matchCount += 40;
+                matchCount += 50;
             }
         });
     });
