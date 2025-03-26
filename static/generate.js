@@ -105,20 +105,84 @@ function parseInstruction(instruction) {
         roles: [],
         moves: [],
         abilities: [],
-        team_composition: [],
+        team_composition: []
     };
 
-    const types = ["steel", "fighting", "dragon", "water", "electric", "fairy", 
-        "fire", "ice", "bug", "normal", "grass", "poison", "psychic", 
-        "rock", "ground", "ghost", "flying", "dark"];
-    const teraTypes = ["steel", "fighting", "dragon", "water", "electric",
-        "electrik", "fairy", "fire", "ice", "bug", "insect", "normal",
-        "grass", "poison", "psychic", "rock", "ground", "ghost", "flying",
-        "dark", "stellar"];
-    
     const lowerInstruction = instruction.toLowerCase();
+    const pokemonReferences = [];
 
+    // First, find all Pokémon mentions and their positions
+    [...pokemonNames].forEach(name => {
+        const regex = new RegExp(`\\b${name}\\b`, 'g');
+        let match;
+        while ((match = regex.exec(lowerInstruction)) !== null) {
+            pokemonReferences.push({
+                name: data[0].pokemons.find(p => p.name.toLowerCase() === name)?.name || name,
+                position: match.index,
+                lowerName: name
+            });
+        }
+    });
+
+    // Sort by position to process in order
+    pokemonReferences.sort((a, b) => a.position - b.position);
+    parsed.pokemon = pokemonReferences.map(ref => ref.name);
+
+    // Process each Pokémon reference
+    for (let i = 0; i < pokemonReferences.length; i++) {
+        const currentPokemon = pokemonReferences[i];
+        const nextPokemon = i < pokemonReferences.length - 1 ? pokemonReferences[i + 1] : null;
+        
+        // Extract the text relevant to this Pokémon (from current position to next Pokémon or end)
+        const start = currentPokemon.position + currentPokemon.lowerName.length;
+        const end = nextPokemon ? nextPokemon.position : lowerInstruction.length;
+        const pokemonText = lowerInstruction.slice(start, end).trim();
+
+        // Look for "with" or "holding" clauses
+        const withMatch = pokemonText.match(/\bwith\b|\bholding\b/);
+        if (withMatch) {
+            const afterWith = pokemonText.slice(withMatch.index + withMatch[0].length).trim();
+            
+            // Split by commas or "and" but be careful with "and" in move names (like "Double-Edge")
+            const itemsAndMoves = afterWith.split(/(?:,\s*|\band\b)(?![^(]*\))/); // Negative lookahead for parentheses
+            
+            for (const part of itemsAndMoves.map(p => p.trim()).filter(p => p)) {
+                // Check for items
+                for (const item of allItems) {
+                    if (item && new RegExp(`\\b${item}\\b`).test(part)) {
+                        parsed.pokemon_with_items.push({
+                            pokemon: currentPokemon.name,
+                            item
+                        });
+                    }
+                }
+                
+                // Check for moves
+                for (const move of allMoves) {
+                    if (move && new RegExp(`\\b${move}\\b`).test(part)) {
+                        parsed.pokemon_with_moves.push({
+                            pokemon: currentPokemon.name,
+                            move
+                        });
+                    }
+                }
+                
+                // Check for abilities
+                for (const ability of allAbilities) {
+                    if (ability && new RegExp(`\\b${ability}\\b`).test(part)) {
+                        parsed.pokemon_with_abilities.push({
+                            pokemon: currentPokemon.name,
+                            ability
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // The rest of your existing parsing code for other attributes...
     // Detect Pokémon with specific Tera types
+    const teraTypes = ["steel", "fighting", "dragon", "water", "electric", "electrik", "fairy", "fire", "ice", "bug", "insect", "normal", "grass", "poison", "psychic", "rock", "ground", "ghost", "flying", "dark", "stellar"];
     teraTypes.forEach(tera => {
         if (lowerInstruction.includes(`tera ${tera}`)) {
             parsed.pokemon.forEach(pokemon => {
@@ -166,6 +230,7 @@ function parseInstruction(instruction) {
     });
 
     // Detect types
+    const types = ["steel", "fighting", "dragon", "water", "electric", "electrik", "fairy", "fire", "ice", "bug", "insect", "normal", "grass", "poison", "psychic", "rock", "ground", "ghost", "flying", "dark"];
     types.forEach(type => {
         if (instruction.toLowerCase().includes(`${type.toLowerCase()} type`) || 
             instruction.toLowerCase().includes(`${type.toLowerCase()}-type`)) {
