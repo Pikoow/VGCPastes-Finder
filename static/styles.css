@@ -191,3 +191,27 @@ body {
 .animate-fade-in {
   animation: fade-in 0.3s ease-in-out;
 }
+
+/* Did you mean suggestion styling */
+#did-you-mean {
+  transition: opacity 0.3s ease;
+  min-height: 1.5rem; /* Prevent layout shift when appearing */
+}
+
+#suggestion-link {
+  transition: color 0.2s ease;
+  font-weight: 500; /* Slightly bolder for emphasis */
+}
+
+#suggestion-link:hover {
+  color: #d97706; /* Darker amber on hover */
+  text-decoration: underline;
+}
+
+.dark #suggestion-link {
+  color: #fbbf24; /* Amber in dark mode */
+}
+
+.dark #suggestion-link:hover {
+  color: #f59e0b; /* Darker amber in dark mode */
+}

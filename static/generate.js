@@ -19,7 +19,6 @@ let allAbilities = new Set();
 let pokemonNames = new Set();
 
 async function initializeData() {
-    // Wait for data to be loaded
     await dataLoaded;
     
     // Cache all Pokémon names
@@ -42,6 +41,8 @@ async function initializeData() {
     
     // Remove duplicates
     allMoves = [...new Set(allMoves)];
+
+    window.pokemonNames = pokemonNames;
 }
 
 async function fetchAllItems() {
