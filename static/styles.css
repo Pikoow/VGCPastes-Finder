@@ -11,16 +11,6 @@ body {
   color: #e5e7eb; /* Light gray for text */
 }
 
-/* Animation for loading spinner */
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
 /* Custom styles for Pokémon cards */
 .pokemon-card {
   background: #fff7ed; /* Light amber */
@@ -62,6 +52,27 @@ body {
   font-size: 0.75rem;
 }
 
+/* Add to styles.css */
+.spinner {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 3px solid rgba(251, 191, 36, 0.3); /* Light amber border */
+  border-radius: 50%;
+  border-top-color: #fbbf24; /* Amber color */
+  animation: spin 1s ease-in-out infinite;
+}
+
+.dark .spinner {
+  border-color: rgba(74, 85, 104, 0.3); /* Light gray border */
+  border-top-color: #4a5568; /* Dark gray */
+}
+
+/* Update the existing spin animation to use ease-in-out */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* Dark mode for input fields */
 .dark input {
   background-color: #2d3748; /* Dark gray */
@@ -100,11 +111,6 @@ body {
 
 .dark #theme-toggle:hover {
   background-color: #2d3748; /* Slightly lighter gray on hover */
-}
-
-/* Dark mode for the loading spinner */
-.dark #loading-spinner {
-  color: #e5e7eb; /* Light gray for spinner */
 }
 
 /* Dark mode for the team container */
