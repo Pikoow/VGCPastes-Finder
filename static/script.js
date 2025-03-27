@@ -79,7 +79,7 @@ function findClosestPokemonName(input) {
         if (Math.abs(name.length - inputLower.length) > 3) continue;
         
         // Skip if the beginning matches exactly (user is probably typing)
-        if (name.startsWith(inputLower) && inputLower.length < 6) return null;
+        if (name.startsWith(inputLower) && inputLower.length < 4) return null;
         
         // Simple similarity check (partial match)
         if (name.includes(inputLower) || inputLower.includes(name)) {
@@ -88,7 +88,7 @@ function findClosestPokemonName(input) {
         
         // More advanced distance calculation
         const distance = levenshteinDistance(inputLower, name);
-        if (distance < minDistance && distance <= 2) { // Only suggest if very close (max 2 changes)
+        if (distance < minDistance && distance <= 3) { // Only suggest if very close (max 2 changes)
             minDistance = distance;
             closest = name;
         }
@@ -133,7 +133,7 @@ document.getElementById("instruction").addEventListener("input", function() {
     
     for (const word of words) {
         // Skip words that are obviously not Pokémon names
-        if (word.length < 4 || word.length > 15) continue;
+        if (word.length < 4 || word.length > 20) continue;
         if (IGNORED_WORDS.has(word.toLowerCase())) continue;
         
         const closest = findClosestPokemonName(word);
