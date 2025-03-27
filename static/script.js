@@ -179,23 +179,23 @@ document.getElementById("search-btn").addEventListener("click", async () => {
     searchText.textContent = "Searching...";
     loadingSpinner.classList.remove("hidden");
 
+    // Clear any existing title
+    const existingTitle = document.querySelector(".team-title");
+    if (existingTitle) {
+        existingTitle.remove();
+    }
+
     await new Promise(resolve => setTimeout(resolve, 500));
 
     try {
         // Generate the team directly in the browser
-        const teams = generatePokepaste(instruction);
+        const [teams, noDetect] = generatePokepaste(instruction);
 
         // Shuffle the teams array to randomize the selection
         const shuffledTeams = shuffleArray(teams);
 
         // Limit the number of teams to 7
-        const teamsToDisplay = shuffledTeams.slice(0, 7);
-
-        // Clear any existing title
-        const existingTitle = document.querySelector(".team-title");
-        if (existingTitle) {
-            existingTitle.remove();
-        }
+        let teamsToDisplay = shuffledTeams.slice(0, 7);
 
         // Display the first team as the main team
         const mainTeam = teamsToDisplay[0];
@@ -204,6 +204,13 @@ document.getElementById("search-btn").addEventListener("click", async () => {
 
         // Display the main team
         displayTeam(mainTeam, teamContainer);
+
+        if (noDetect) {
+            teamsToDisplay = {};
+
+            const otherTeamsNumberTitle = `<h3 class="text-xl font-bold text-center col-span-full text-gray-800 dark:text-gray-100">We couldn't find teams matching your search, so here's a random team!</h3>`;
+            teamContainer.insertAdjacentHTML("beforeend", otherTeamsNumberTitle);
+        }
 
         // Display other teams as smaller cards below the main team
         if (teamsToDisplay.length > 1) {

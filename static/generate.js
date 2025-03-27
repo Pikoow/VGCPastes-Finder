@@ -540,6 +540,8 @@ function generatePokepaste(instruction) {
     // Find the maximum match score
     const maxScore = Math.max(...matchScores);
 
+    const noDetect = maxScore == 0;
+
     // Find all teams with the maximum match score
     const bestTeams = data.filter((team, index) => matchScores[index] === maxScore);
 
@@ -556,7 +558,7 @@ function generatePokepaste(instruction) {
         }))
     }));
 
-    return simplifiedTeams;
+    return [simplifiedTeams, noDetect];
 }
 
 // Expose the generatePokepaste function to the global scope
