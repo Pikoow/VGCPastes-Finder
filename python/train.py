@@ -119,7 +119,7 @@ vectorizer = TfidfVectorizer()
 tfidf_matrix = vectorizer.fit_transform(team_descriptions)
 
 # Save the recommender
-with open("models/recommender.pkl", "wb") as f:
+with open("data/recommender.pkl", "wb") as f:
     pickle.dump(vectorizer, f)
 
 print("Training complete! Models saved to the 'models' folder.")
