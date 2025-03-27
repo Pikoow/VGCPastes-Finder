@@ -234,19 +234,24 @@ document.getElementById("search-btn").addEventListener("click", async () => {
             });
         }
 
-        // Show the big copy button for the entire team
+        // Show the copy button for the entire team
         copyAllContainer.classList.remove("hidden");
 
-        // Add event listener for the big copy button
+        // Add event listener for the copy button
         document.getElementById("copy-all-btn").addEventListener("click", () => {
             const teamText = mainTeam.pokemons.map(pokemon => {
                 return `${pokemon.name} @ ${pokemon.item || "No Item"}\nAbility: ${pokemon.ability || "Unknown"}\nTera Type: ${pokemon.tera_type}\n- ${pokemon.moves.join("\n- ")}`;
             }).join("\n\n");
+            
             navigator.clipboard.writeText(teamText).then(() => {
-                copySuccessMessage.classList.remove("hidden");
+                const message = document.getElementById("global-copy-message");
+                message.classList.remove("hidden");
+                message.classList.add("show");
+                
                 setTimeout(() => {
-                    copySuccessMessage.classList.add("hidden");
-                }, 2000); // Hide the message after 2 seconds
+                    message.classList.remove("show");
+                    setTimeout(() => message.classList.add("hidden"), 300);
+                }, 2000);
             });
         });
     } catch (error) {

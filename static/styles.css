@@ -160,54 +160,82 @@ body {
   color: #e5e7eb;
 }
 
-/* Big Copy Button */
+/* Copy Button */
+#copy-all-container {
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+
+/* Copy button styles */
 #copy-all-btn {
-  font-size: 1.25rem; /* Larger text */
-  padding: 0.75rem 1.5rem; /* Bigger padding */
-}
-
-.dark #copy-all-btn {
-  background-color: #48bb78; /* Green */
-  color: #e5e7eb; /* Light gray text */
-}
-
-.dark #copy-all-btn:hover {
-  background-color: #38a169; /* Slightly darker green on hover */
-}
-
-/* Big Copy Button */
-#copy-all-btn {
-  font-size: 1.25rem; /* Larger text */
-  padding: 0.75rem 1.5rem; /* Bigger padding */
-  background-color: #fbbf24; /* Amber color to match the theme */
-  color: #1e293b; /* Dark gray text for contrast */
-  border-radius: 0.5rem; /* Rounded corners */
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  font-size: 1rem;
+  padding: 0.75rem 1.5rem;
+  background-color: #fbbf24;
+  color: #1e293b;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  border: 2px solid #f59e0b;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 #copy-all-btn:hover {
-  background-color: #f59e0b; /* Slightly darker amber on hover */
-  transform: translateY(-2px); /* Slight lift on hover */
+  background-color: #f59e0b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
 }
 
-/* Dark mode for the big copy button */
 .dark #copy-all-btn {
-  background-color: #4a5568; /* Dark gray */
-  color: #e5e7eb; /* Light gray text */
+  background-color: #4a5568;
+  color: #e5e7eb;
+  border-color: #2d3748;
 }
 
 .dark #copy-all-btn:hover {
-  background-color: #2d3748; /* Slightly lighter gray on hover */
+  background-color: #2d3748;
 }
 
-/* Fade-in animation for format help */
-@keyframes fade-in {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
+/* Global copy message styles */
+#global-copy-message {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(-150%);
+  background-color: #fff7ed;
+  color: #1a1a1a;
+  padding: 0.75rem 1.5rem;
+  border-radius: 9999px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+  z-index: 50;
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  display: flex;
+  align-items: center;
+  max-width: 275px;
+  border: 2px solid #fbbf24;
 }
 
-.animate-fade-in {
-  animation: fade-in 0.3s ease-in-out;
+.dark #global-copy-message {
+  background-color: rgba(45, 55, 72, 0.95);
+  color: white;
+  border-color: #4a5568;
+}
+
+#global-copy-message.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+#global-copy-message span:first-child {
+  margin-right: 0.5rem;
+  font-size: 1.1em;
+  animation: checkmark 0.5s ease;
+  color: green;
+}
+
+/* Keep the existing checkmark animation */
+@keyframes checkmark {
+  0% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1.2); }
+  100% { transform: scale(1); }
 }
 
 /* Did you mean suggestion styling */
