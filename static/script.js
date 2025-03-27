@@ -207,10 +207,8 @@ document.getElementById("search-btn").addEventListener("click", async () => {
 
         // Display other teams as smaller cards below the main team
         if (teamsToDisplay.length > 1) {
-            const otherTeamsNumberTitle = `<h3 class="text-xl font-bold text-center col-span-full mb-4 text-gray-800 dark:text-gray-100">${shuffledTeams.length - 1} other teams match that query</h3>`;
-            const otherTeamsTitle = `<h2 class="text-xl font-bold text-center col-span-full mb-4 text-gray-800 dark:text-gray-100">Other similar teams</h2>`;
+            const otherTeamsNumberTitle = `<h3 class="text-xl font-bold text-center col-span-full text-gray-800 dark:text-gray-100">${shuffledTeams.length - 1} other teams match that query</h3>`;
             teamContainer.insertAdjacentHTML("beforeend", otherTeamsNumberTitle);
-            teamContainer.insertAdjacentHTML("beforeend", otherTeamsTitle);
 
             teamsToDisplay.slice(1).forEach(team => {
                 const teamCard = document.createElement("div");

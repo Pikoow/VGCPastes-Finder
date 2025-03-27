@@ -116,6 +116,7 @@ body {
 .dark #search-btn {
   background-color: #4a5568; /* Dark gray */
   color: #e5e7eb; /* Light gray text */
+  border: none;
 }
 
 .dark #search-btn:hover {
@@ -125,6 +126,17 @@ body {
 /* Dark mode for the search text */
 .dark #search-text {
   color: #e5e7eb; /* Light gray text */
+}
+
+/* Dark mode for the help button */
+.dark #format-help-btn {
+  background-color: #4a5568; /* Dark gray */
+  color: #e5e7eb; /* Light gray text */
+  border: none;
+}
+
+.dark #format-help-btn:hover {
+  background-color: #2d3748; /* Slightly lighter gray on hover */
 }
 
 /* Dark mode for the instruction input */

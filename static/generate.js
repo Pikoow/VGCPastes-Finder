@@ -114,7 +114,8 @@ function parseInstruction(instruction) {
 
     // First, find all Pokémon mentions and their positions
     [...pokemonNames].forEach(name => {
-        const regex = new RegExp(`\\b${name}\\b`, 'g');
+        // Use word boundaries and exact matching for Pokémon names
+        const regex = new RegExp(`(^|\\s)${name.replace(/[-]/g, '\\-')}(?=$|\\s)`, 'g');
         let match;
         while ((match = regex.exec(lowerInstruction)) !== null) {
             pokemonReferences.push({
@@ -127,12 +128,28 @@ function parseInstruction(instruction) {
 
     // Sort by position to process in order
     pokemonReferences.sort((a, b) => a.position - b.position);
+
+    // Remove duplicates and prefer longer names (like Landorus-Therian over Landorus)
+    const uniquePokemon = [];
+    pokemonReferences.forEach(ref => {
+        const existing = uniquePokemon.find(p => 
+            p.lowerName.includes(ref.lowerName) || ref.lowerName.includes(p.lowerName)
+        );
+        if (!existing) {
+            uniquePokemon.push(ref);
+        } else if (ref.lowerName.length > existing.lowerName.length) {
+            // Replace with the longer name
+            const index = uniquePokemon.indexOf(existing);
+            uniquePokemon[index] = ref;
+        }
+    });
+
     parsed.pokemon = pokemonReferences.map(ref => ref.name);
 
     // Process each Pokémon reference
-    for (let i = 0; i < pokemonReferences.length; i++) {
-        const currentPokemon = pokemonReferences[i];
-        const nextPokemon = i < pokemonReferences.length - 1 ? pokemonReferences[i + 1] : null;
+    for (let i = 0; i < uniquePokemon.length; i++) {
+        const currentPokemon = uniquePokemon[i];
+        const nextPokemon = i < uniquePokemon.length - 1 ? uniquePokemon[i + 1] : null;
         
         // Extract the text relevant to this Pokémon (from current position to next Pokémon or end)
         const start = currentPokemon.position + currentPokemon.lowerName.length;
@@ -150,7 +167,7 @@ function parseInstruction(instruction) {
             for (const part of itemsAndMoves.map(p => p.trim()).filter(p => p)) {
                 // Check for items
                 for (const item of allItems) {
-                    if (item && new RegExp(`\\b${item}\\b`).test(part)) {
+                    if (item && new RegExp(`(^|\\s)${item}(?=$|\\s)`).test(part)) {
                         parsed.pokemon_with_items.push({
                             pokemon: currentPokemon.name,
                             item
@@ -158,9 +175,11 @@ function parseInstruction(instruction) {
                     }
                 }
                 
-                // Check for moves
+                // Check for moves - only if they're not part of a Pokémon name
                 for (const move of allMoves) {
-                    if (move && new RegExp(`\\b${move}\\b`).test(part)) {
+                    if (move && 
+                        new RegExp(`(^|\\s)${move}(?=$|\\s)`).test(part) &&
+                        !uniquePokemon.some(p => p.lowerName.includes(move))) {
                         parsed.pokemon_with_moves.push({
                             pokemon: currentPokemon.name,
                             move
@@ -168,9 +187,11 @@ function parseInstruction(instruction) {
                     }
                 }
                 
-                // Check for abilities
+                // Check for abilities - only if they're not part of a Pokémon name
                 for (const ability of allAbilities) {
-                    if (ability && new RegExp(`\\b${ability}\\b`).test(part)) {
+                    if (ability && 
+                        new RegExp(`(^|\\s)${ability}(?=$|\\s)`).test(part) &&
+                        !uniquePokemon.some(p => p.lowerName.includes(ability))) {
                         parsed.pokemon_with_abilities.push({
                             pokemon: currentPokemon.name,
                             ability
@@ -181,7 +202,6 @@ function parseInstruction(instruction) {
         }
     }
 
-    // The rest of your existing parsing code for other attributes...
     // Detect Pokémon with specific Tera types
     const teraTypes = ["steel", "fighting", "dragon", "water", "electric", "electrik", "fairy", "fire", "ice", "bug", "insect", "normal", "grass", "poison", "psychic", "rock", "ground", "ghost", "flying", "dark", "stellar"];
     teraTypes.forEach(tera => {
@@ -196,16 +216,20 @@ function parseInstruction(instruction) {
 
     // Detect specific moves (additional checks beyond the "with" clause)
     allMoves.forEach(move => {
-        if (move && lowerInstruction.includes(move) && 
-            !parsed.pokemon_with_moves.some(m => m.move === move)) {
+        if (move && 
+            new RegExp(`(^|\\s)${move}(?=$|\\s)`).test(lowerInstruction) && 
+            !parsed.pokemon_with_moves.some(m => m.move === move) &&
+            !uniquePokemon.some(p => p.lowerName.includes(move))) {
             parsed.moves.push(move);
         }
     });
 
     // Detect abilities (additional checks beyond the "with" clause)
     [...allAbilities].forEach(ability => {
-        if (ability && lowerInstruction.includes(ability) && 
-            !parsed.pokemon_with_abilities.some(a => a.ability === ability)) {
+        if (ability && 
+            new RegExp(`(^|\\s)${ability}(?=$|\\s)`).test(lowerInstruction) && 
+            !parsed.pokemon_with_abilities.some(a => a.ability === ability) &&
+            !uniquePokemon.some(p => p.lowerName.includes(ability))) {
             parsed.abilities.push(ability);
         }
     });
