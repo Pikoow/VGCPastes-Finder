@@ -552,7 +552,18 @@ function generatePokepaste(instruction) {
             name: p.name,
             ability: p.ability,
             item: p.item,
-            moves: p.moves.slice(0, 4).map(m => typeof m === 'object' ? m.name : m),
+            moves: p.moves.slice(0, 4).map(m => {
+                if (typeof m === 'object') {
+                    return {
+                        name: m.name,
+                        type: m.type
+                    };
+                }
+                return {
+                    name: m,
+                    type: 'unknown' // Default type if move is just a string
+                };
+            }),
             tera_type: p.tera_type,
             sprite: p.sprites?.front_default
         }))

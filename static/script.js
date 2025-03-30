@@ -276,29 +276,36 @@ function shuffleArray(array) {
 function displayTeam(team, container) {
     team.pokemons.forEach(pokemon => {
         const itemSpriteUrl = pokemon.item ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${pokemon.item.toLowerCase().replace(/ /g, '-')}.png` : null;
+        const teraType = pokemon.tera_type || "Unknown";
 
         const pokemonCard = `
-            <div class="pokemon-card p-3 rounded-lg shadow-md relative">
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="flex flex-col items-center">
-                        <img src="${pokemon.sprite}" alt="${pokemon.name}" class="w-16 h-16 mb-2" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png';">
-                        <h3 class="font-bold text-sm text-center nerdy-font">${pokemon.name}</h3>
-                        <div class="flex items-center mt-1">
+            <div class="pokemon-card">
+                <div class="card-content">
+                    <div class="pokemon-image">
+                        <img src="${pokemon.sprite}" alt="${pokemon.name}" class="w-16 h-16" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png';">
+                        <h3 class="pokemon-name text-sm text-center">${pokemon.name}</h3>
+                        <div class="pokemon-item">
                             ${pokemon.item ? `
-                                <img src="${itemSpriteUrl}" alt="${pokemon.item}" class="w-4 h-4 mr-1" onerror="this.onerror=null; this.style.display='none';">
-                            ` : ''}
-                            <p class="text-xs text-gray-600 dark:text-gray-400 nerdy-font">${pokemon.item || "No Item"}</p>
+                                <img src="${itemSpriteUrl}" alt="${pokemon.item}" class="w-4 h-4" onerror="this.onerror=null; this.style.display='none';">
+                                <p class="text-xs text-gray-600 dark:text-gray-400">${pokemon.item}</p>
+                            ` : '<p class="text-xs text-gray-600 dark:text-gray-400">No Item</p>'}
                         </div>
                     </div>
-                    <div class="flex flex-col">
-                        <p class="text-xs text-gray-600 dark:text-gray-400 mb-2 nerdy-font">
-                            <span class="font-semibold">Ability:</span> ${pokemon.ability}
+                    <div class="pokemon-info">
+                        <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                            <span class="font-semibold">Ability:</span> ${pokemon.ability || "Unknown"}
                         </p>
-                        <p class="text-xs text-gray-600 dark:text-gray-400 mb-2 nerdy-font">
-                            <span class="font-semibold">Tera Type:</span> ${pokemon.tera_type}
+                        <p class="text-xs text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1">
+                            <span class="tera-badge type-${teraType.toLowerCase()}">${teraType}</span>
+                            <span>Tera Type</span>
                         </p>
-                        <ul class="text-xs text-gray-500 dark:text-gray-300 nerdy-font">
-                            ${pokemon.moves.map(move => `<li>${move}</li>`).join("")}
+                        <ul class="pokemon-moves text-xs text-gray-500 dark:text-gray-300">
+                            ${pokemon.moves.map(move => `
+                                <li class="flex items-center">
+                                    <span class="type-badge type-${move.type.toLowerCase()} mr-1">${move.type}</span>
+                                    ${move.name}
+                                </li>
+                            `).join("")}
                         </ul>
                     </div>
                 </div>

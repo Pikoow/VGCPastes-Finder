@@ -1,29 +1,33 @@
 /* Custom font for nerdy feel */
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
 
+/* Base Styles */
 body {
   font-family: "Manrope", sans-serif;
 }
 
-/* Dark mode for the entire body */
+/* Dark Mode */
 .dark body {
-  background-color: #1a1a1a; /* Darker black for better contrast */
-  color: #e5e7eb; /* Light gray for text */
+  background-color: #1a1a1a;
+  color: #e5e7eb;
 }
 
-/* Custom styles for Pokémon cards */
+/* Card Styles */
 .pokemon-card {
-  background: #fff7ed; /* Light amber */
+  background: #fff7ed;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border: 2px solid #fbbf24; /* Amber border */
+  border: 2px solid #fbbf24;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
 }
 
 .dark .pokemon-card {
-  background: #2d3748; /* Dark gray */
-  border-color: #4a5568; /* Darker gray */
-  color: #e5e7eb; /* Light gray text for dark mode */
+  background: #2d3748;
+  border-color: #4a5568;
+  color: #e5e7eb;
 }
 
 .pokemon-card:hover {
@@ -31,11 +35,73 @@ body {
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Smaller Pokémon cards for other teams */
+/* Card Content Layout */
+.pokemon-card .card-content {
+  padding: 0.75rem;
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 0.75rem;
+}
+
+.pokemon-card .pokemon-image {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pokemon-card .pokemon-image img {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 0.5rem;
+}
+
+.pokemon-card .pokemon-info {
+  font-size: 0.875rem;
+}
+
+.pokemon-card .pokemon-name {
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.pokemon-card .pokemon-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.pokemon-card .pokemon-item img {
+  width: 16px;
+  height: 16px;
+  margin-right: 0.25rem;
+}
+
+.pokemon-card .pokemon-moves {
+  list-style-type: none;
+  padding-left: 0;
+  margin-top: 0.5rem;
+}
+
+.pokemon-card .pokemon-moves li {
+  margin-bottom: 0.25rem;
+}
+
+/* Team Container Layout */
+#team-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Small Cards for Other Teams */
 .pokemon-card.small {
   padding: 0.5rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  max-width: 240px;
 }
 
 .pokemon-card.small img {
@@ -52,121 +118,61 @@ body {
   font-size: 0.75rem;
 }
 
-/* Add to styles.css */
+/* Spinner */
 .spinner {
   width: 1.5rem;
   height: 1.5rem;
-  border: 3px solid rgba(251, 191, 36, 0.3); /* Light amber border */
+  border: 3px solid rgba(251, 191, 36, 0.3);
   border-radius: 50%;
-  border-top-color: #fbbf24; /* Amber color */
+  border-top-color: #fbbf24;
   animation: spin 1s ease-in-out infinite;
 }
 
 .dark .spinner {
-  border-color: rgba(74, 85, 104, 0.3); /* Light gray border */
-  border-top-color: #4a5568; /* Dark gray */
+  border-color: rgba(74, 85, 104, 0.3);
+  border-top-color: #4a5568;
 }
 
-/* Update the existing spin animation to use ease-in-out */
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
 
-/* Dark mode for input fields */
+/* Dark Mode Components */
 .dark input {
-  background-color: #2d3748; /* Dark gray */
-  border-color: #4a5568; /* Darker gray */
-  color: #e5e7eb; /* Light gray text */
+  background-color: #2d3748;
+  border-color: #4a5568;
+  color: #e5e7eb;
 }
 
 .dark input::placeholder {
-  color: #a0aec0; /* Lighter gray for placeholder text */
+  color: #a0aec0;
 }
 
-/* Dark mode for buttons */
 .dark button {
-  background-color: #4a5568; /* Dark gray */
-  color: #e5e7eb; /* Light gray text */
+  background-color: #4a5568;
+  color: #e5e7eb;
 }
 
 .dark button:hover {
-  background-color: #2d3748; /* Slightly lighter gray on hover */
+  background-color: #2d3748;
 }
 
-/* Dark mode for links */
 .dark a {
-  color: #63b3ed; /* Light blue for links */
+  color: #63b3ed;
 }
 
 .dark a:hover {
-  color: #4299e1; /* Slightly darker blue on hover */
-}
-
-/* Dark mode for the theme toggle button */
-.dark #theme-toggle {
-  background-color: #4a5568; /* Dark gray */
-  color: #e5e7eb; /* Light gray text */
-}
-
-.dark #theme-toggle:hover {
-  background-color: #2d3748; /* Slightly lighter gray on hover */
-}
-
-/* Dark mode for the team container */
-.dark #team-container {
-  background-color: #1a1a1a; /* Darker black */
-}
-
-/* Dark mode for the search button */
-.dark #search-btn {
-  background-color: #4a5568; /* Dark gray */
-  color: #e5e7eb; /* Light gray text */
-  border: none;
-}
-
-.dark #search-btn:hover {
-  background-color: #2d3748; /* Slightly lighter gray on hover */
-}
-
-/* Dark mode for the search text */
-.dark #search-text {
-  color: #e5e7eb; /* Light gray text */
-}
-
-/* Dark mode for the help button */
-.dark #format-help-btn {
-  background-color: #4a5568; /* Dark gray */
-  color: #e5e7eb; /* Light gray text */
-  border: none;
-}
-
-.dark #format-help-btn:hover {
-  background-color: #2d3748; /* Slightly lighter gray on hover */
-}
-
-/* Dark mode for the instruction input */
-.dark #instruction {
-  background-color: #2d3748; /* Dark gray */
-  border-color: #4a5568; /* Darker gray */
-  color: #e5e7eb; /* Light gray text */
-}
-
-.dark #instruction::placeholder {
-  color: #a0aec0; /* Lighter gray for placeholder text */
-}
-
-.dark h1, .dark h2, .dark h3, .dark h4, .dark p, .dark li {
-  color: #e5e7eb;
+  color: #4299e1;
 }
 
 /* Copy Button */
 #copy-all-container {
   margin-top: 1rem;
   margin-bottom: 2rem;
+  text-align: center;
 }
 
-/* Copy button styles */
 #copy-all-btn {
   font-size: 1rem;
   padding: 0.75rem 1.5rem;
@@ -195,7 +201,7 @@ body {
   background-color: #2d3748;
 }
 
-/* Global copy message styles */
+/* Copy Message */
 #global-copy-message {
   position: fixed;
   top: 1rem;
@@ -231,33 +237,139 @@ body {
   color: green;
 }
 
-/* Keep the existing checkmark animation */
 @keyframes checkmark {
   0% { opacity: 0; transform: scale(0.5); }
   50% { opacity: 1; transform: scale(1.2); }
   100% { transform: scale(1); }
 }
 
-/* Did you mean suggestion styling */
+/* Suggestion Styling */
 #did-you-mean {
   transition: opacity 0.3s ease;
-  min-height: 1.5rem; /* Prevent layout shift when appearing */
+  min-height: 1.5rem;
 }
 
 #suggestion-link {
   transition: color 0.2s ease;
-  font-weight: 500; /* Slightly bolder for emphasis */
+  font-weight: 500;
 }
 
 #suggestion-link:hover {
-  color: #d97706; /* Darker amber on hover */
+  color: #d97706;
   text-decoration: underline;
 }
 
 .dark #suggestion-link {
-  color: #fbbf24; /* Amber in dark mode */
+  color: #fbbf24;
 }
 
 .dark #suggestion-link:hover {
-  color: #f59e0b; /* Darker amber in dark mode */
+  color: #f59e0b;
 }
+
+/* Text Colors for Dark Mode */
+.dark h1, .dark h2, .dark h3, .dark h4, .dark p, .dark li {
+  color: #e5e7eb;
+}
+
+/* Type Badges */
+.type-badge {
+  display: inline-block;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  font-size: 0.6rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: white;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+}
+
+.tera-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  font-size: 0.6rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+  min-width: 40px;
+  z-index: 1;
+}
+
+.tera-badge::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+      to bottom right,
+      rgba(255, 255, 255, 0) 45%,
+      rgba(255, 255, 255, 0.9) 50%,
+      rgba(255, 255, 255, 0) 55%
+  );
+  transform: rotate(30deg);
+  animation: tera-shine 2.5s infinite;
+  filter: blur(2px);
+}
+
+.tera-badge::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+      circle at 20% 30%,
+      rgba(255, 255, 255, 0.8) 0%,
+      rgba(255, 255, 255, 0) 20%
+  ),
+  radial-gradient(
+      circle at 80% 70%,
+      rgba(255, 255, 255, 0.8) 0%,
+      rgba(255, 255, 255, 0) 20%
+  );
+  opacity: 0.7;
+  animation: sparkle 4s infinite alternate;
+}
+
+@keyframes tera-shine {
+  0% { transform: translateX(-100%) rotate(30deg); }
+  20% { transform: translateX(100%) rotate(30deg); }
+  100% { transform: translateX(100%) rotate(30deg); }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.9; }
+}
+
+/* Type Colors */
+.type-normal { background-color: #A8A878; }
+.type-fire { background-color: #F08030; }
+.type-water { background-color: #6890F0; }
+.type-electric { background-color: #F8D030; }
+.type-grass { background-color: #78C850; }
+.type-ice { background-color: #98D8D8; }
+.type-fighting { background-color: #C03028; }
+.type-poison { background-color: #A040A0; }
+.type-ground { background-color: #E0C068; }
+.type-flying { background-color: #A890F0; }
+.type-psychic { background-color: #F85888; }
+.type-bug { background-color: #A8B820; }
+.type-rock { background-color: #B8A038; }
+.type-ghost { background-color: #705898; }
+.type-dragon { background-color: #7038F8; }
+.type-dark { background-color: #705848; }
+.type-steel { background-color: #B8B8D0; }
+.type-fairy { background-color: #EE99AC; }
+.type-unknown { background-color: #68A090; }
