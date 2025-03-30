@@ -74,6 +74,7 @@ body {
   width: 16px;
   height: 16px;
   margin-right: 0.25rem;
+  margin-bottom: 0;
 }
 
 .pokemon-card .pokemon-moves {

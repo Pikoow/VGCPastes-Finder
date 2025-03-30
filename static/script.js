@@ -286,7 +286,7 @@ function displayTeam(team, container) {
                         <h3 class="pokemon-name text-sm text-center">${pokemon.name}</h3>
                         <div class="pokemon-item">
                             ${pokemon.item ? `
-                                <img src="${itemSpriteUrl}" alt="${pokemon.item}" class="w-4 h-4" onerror="this.onerror=null; this.style.display='none';">
+                                <img src="${itemSpriteUrl}" alt="${pokemon.item}" class="item-image w-4 h-4" onerror="this.onerror=null; this.style.display='none';">
                                 <p class="text-xs text-gray-600 dark:text-gray-400">${pokemon.item}</p>
                             ` : '<p class="text-xs text-gray-600 dark:text-gray-400">No Item</p>'}
                         </div>
