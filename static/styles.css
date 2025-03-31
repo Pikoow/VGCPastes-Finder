@@ -89,9 +89,6 @@ body {
 
 /* Team Container Layout */
 #team-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem;
   padding: 1rem;
   max-width: 1200px;
   margin: 0 auto;
@@ -374,3 +371,47 @@ body {
 .type-steel { background-color: #B8B8D0; }
 .type-fairy { background-color: #EE99AC; }
 .type-unknown { background-color: #68A090; }
+
+/* Add this to your existing type-badge styles */
+.type-stellar {
+  background: linear-gradient(
+    45deg,
+    #ff0000 0%, 
+    #ff7f00 15%, 
+    #ffff00 30%, 
+    #00ff00 45%,
+    #0000ff 60%, 
+    #4b0082 75%, 
+    #9400d3 90%
+  );
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.type-stellar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%
+  );
+  z-index: 1;
+}
+
+.type-stellar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+}

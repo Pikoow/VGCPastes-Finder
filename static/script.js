@@ -293,7 +293,7 @@ function displayTeam(team, container) {
                     </div>
                     <div class="pokemon-info">
                         <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                            <span class="font-semibold">Ability:</span> ${pokemon.ability || "Unknown"}
+                            <span class="font-semibold ability-badge">Ability</span> ${pokemon.ability || "Unknown"}
                         </p>
                         <p class="text-xs text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1">
                             <span class="tera-badge type-${teraType.toLowerCase()}">${teraType}</span>
