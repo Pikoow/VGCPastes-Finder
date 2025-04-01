@@ -561,7 +561,7 @@ function generatePokepaste(instruction) {
                 }
                 return {
                     name: m,
-                    type: 'unknown' // Default type if move is just a string
+                    type: 'unknown'
                 };
             }),
             tera_type: p.tera_type,

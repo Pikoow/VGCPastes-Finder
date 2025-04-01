@@ -167,11 +167,7 @@ document.getElementById("search-btn").addEventListener("click", async () => {
 
     // Clear previous team and copy button
     const teamContainer = document.getElementById("team-container");
-    const copyAllContainer = document.getElementById("copy-all-container");
-    const copySuccessMessage = document.getElementById("copy-success-message");
     teamContainer.innerHTML = ""; // Clear the container
-    copyAllContainer.classList.add("hidden");
-    copySuccessMessage.classList.add("hidden");
 
     // Show loading spinner
     const searchText = document.getElementById("search-text");
@@ -199,8 +195,33 @@ document.getElementById("search-btn").addEventListener("click", async () => {
 
         // Display the first team as the main team
         const mainTeam = teamsToDisplay[0];
-        const title = `<h2 class="team-title text-3xl font-bold text-center mb-8 text-gray-800 dark:text-gray-100 font-serif">${mainTeam.filename.split('.')[0]}</h2>`;
-        teamContainer.insertAdjacentHTML("beforebegin", title);
+        
+        // Create a container for the title and button
+        const titleContainer = document.createElement("div");
+        titleContainer.className = "flex justify-center items-center mb-8 col-span-full relative";
+        
+        // Create a wrapper div for the title and button
+        const titleWrapper = document.createElement("div");
+        titleWrapper.className = "flex items-center gap-4";
+        
+        // Add the title
+        const title = document.createElement("h2");
+        title.className = "team-title text-3xl font-bold text-gray-800 dark:text-gray-100 font-serif";
+        title.textContent = mainTeam.filename.split('.')[0];
+        
+        // Add the copy button
+        const copyButton = document.createElement("button");
+        copyButton.id = "copy-all-btn";
+        copyButton.className = "bg-amber-500 p-2 rounded-r-lg hover:bg-amber-600 flex items-center text-black border border-amber-300 transition-colors";
+        copyButton.textContent = "Copy Poképaste";
+        
+        // Append elements
+        titleWrapper.appendChild(title);
+        titleWrapper.appendChild(copyButton);
+        titleContainer.appendChild(titleWrapper);
+        
+        // Insert before the team container
+        teamContainer.insertAdjacentElement("beforebegin", titleContainer);
 
         // Display the main team
         displayTeam(mainTeam, teamContainer);
@@ -233,9 +254,6 @@ document.getElementById("search-btn").addEventListener("click", async () => {
                 teamContainer.appendChild(teamCard);
             });
         }
-
-        // Show the copy button for the entire team
-        copyAllContainer.classList.remove("hidden");
 
         // Add event listener for the copy button
         document.getElementById("copy-all-btn").addEventListener("click", () => {
