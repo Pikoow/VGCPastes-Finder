@@ -18,27 +18,41 @@ let allMoves = [];
 let allAbilities = new Set();
 let pokemonNames = new Set();
 
+// Define size/weight thresholds (adjust as needed)
+const SMALL_THRESHOLD = 5; // Height in decimetres (e.g., <= 0.5m)
+const TALL_THRESHOLD = 20; // Height in decimetres (e.g., >= 2.0m)
+const LIGHT_THRESHOLD = 100; // Weight in hectograms (e.g., <= 10.0kg)
+const HEAVY_THRESHOLD = 2000; // Weight in hectograms (e.g., >= 200.0kg)
+
+
 async function initializeData() {
     await dataLoaded;
-    
+    if (!data) {
+        console.error("Data failed to load, cannot initialize.");
+        return;
+    }
     // Cache all Pokémon names
     data.forEach(team => {
         team.pokemons.forEach(p => {
-            pokemonNames.add(p.name.toLowerCase());
-            if (p.ability) allAbilities.add(p.ability.toLowerCase());
+            if (p && p.name) {
+                pokemonNames.add(p.name.toLowerCase());
+                if (p.ability) allAbilities.add(p.ability.toLowerCase());
+            }
         });
     });
-    
+
     // Pre-process moves from existing data
     data.forEach(team => {
         team.pokemons.forEach(p => {
-            p.moves.forEach(move => {
-                const moveName = (typeof move === 'object' ? move.name : move).toLowerCase();
-                allMoves.push(moveName);
-            });
+            if (p && p.moves) {
+                p.moves.forEach(move => {
+                    const moveName = (typeof move === 'object' && move !== null ? move.name : move)?.toLowerCase();
+                    if (moveName) allMoves.push(moveName);
+                });
+            }
         });
     });
-    
+
     // Remove duplicates
     allMoves = [...new Set(allMoves)];
 
@@ -47,15 +61,29 @@ async function initializeData() {
 
 async function fetchAllItems() {
     if (allItems.length > 0) return allItems; // Return cached items
-    
+
     const url = "https://play.pokemonshowdown.com/data/items.js";
     try {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Failed to fetch data: ${response.status}`);
-        
+
         const text = await response.text();
-        const items = text.match(/exports\.BattleItems = ({.*?});/s)?.[1] || '{}';
-        allItems = items.match(/name:"([^"]+)"/g)?.map(name => name.slice(6, -1).toLowerCase()) || [];
+        // Improved regex to handle potential variations in formatting
+        const itemsMatch = text.match(/exports\.BattleItems\s*=\s*({[\s\S]*?});/);
+        if (itemsMatch && itemsMatch[1]) {
+            const itemsData = itemsMatch[1];
+            // Extract names more robustly
+            const names = [];
+            const nameRegex = /name:\s*"([^"]+)"/g;
+            let match;
+            while ((match = nameRegex.exec(itemsData)) !== null) {
+                names.push(match[1].toLowerCase());
+            }
+            allItems = names;
+        } else {
+             console.warn("Could not parse items data from Showdown.");
+             allItems = []; // Fallback or keep existing if partially loaded
+        }
         return allItems;
     } catch (error) {
         console.error('Error fetching items:', error);
@@ -64,28 +92,55 @@ async function fetchAllItems() {
 }
 
 async function fetchAllMoves() {
-    if (allMoves.length > 0) return allMoves; // Return cached moves
-    
+    // Keep pre-processed moves from data, only fetch if needed or to supplement
+    if (allMoves.length > 0) {
+         // Optional: Fetch from Showdown to potentially get more moves not in the dataset
+         // return allMoves; // Uncomment this line if you ONLY want moves from your dataset
+    }
+
     const url = "https://play.pokemonshowdown.com/data/moves.js";
     try {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Failed to fetch data: ${response.status}`);
-        
+
         const text = await response.text();
-        const moves = text.match(/exports\.BattleMovedex = ({.*?});/s)?.[1] || '{}';
-        allMoves = moves.match(/name:"([^"]+)"/g)?.map(name => name.slice(6, -1).toLowerCase()) || [];
+        const movesMatch = text.match(/exports\.BattleMovedex\s*=\s*({[\s\S]*?});/);
+         if (movesMatch && movesMatch[1]) {
+            const movesData = movesMatch[1];
+            const showdownMoves = [];
+            const nameRegex = /name:\s*"([^"]+)"/g;
+            let match;
+            while ((match = nameRegex.exec(movesData)) !== null) {
+                showdownMoves.push(match[1].toLowerCase());
+            }
+            // Combine moves from data and showdown, then remove duplicates
+            allMoves = [...new Set([...allMoves, ...showdownMoves])];
+        } else {
+             console.warn("Could not parse moves data from Showdown.");
+             // Keep moves parsed from dataset if fetch fails
+        }
         return allMoves;
     } catch (error) {
         console.error('Error fetching moves:', error);
-        return [];
+        // Keep moves parsed from dataset if fetch fails
+        return allMoves.length > 0 ? allMoves : [];
     }
 }
 
 async function loadAllData() {
-    await Promise.all([fetchAllItems(), fetchAllMoves()]);
+    // Initialize first to get base lists from data
     await initializeData();
-    
-    // Now you can safely use pokemonNames and allAbilities
+    // Then fetch from Showdown to potentially supplement lists
+    await Promise.all([fetchAllItems(), fetchAllMoves()]);
+
+    // Ensure data loaded before proceeding
+    if (!data) {
+        console.error("Critical error: Processed data is not available.");
+        // Handle this case appropriately in the UI, maybe show an error message
+        return;
+    }
+
+    // Final check and logging
     /*console.log('Data loaded - Pokémon names:', pokemonNames);
     console.log('Data loaded - Abilities:', allAbilities);
     console.log('Data loaded - Moves:', allMoves);
@@ -106,25 +161,43 @@ function parseInstruction(instruction) {
         roles: [],
         moves: [],
         abilities: [],
-        team_composition: []
+        size_requests: [], // Added: { type: 'small' | 'tall', count: number }
+        weight_requests: [] // Added: { type: 'light' | 'heavy', count: number }
     };
 
     const lowerInstruction = instruction.toLowerCase();
     const pokemonReferences = [];
 
     // First, find all Pokémon mentions and their positions
-    [...pokemonNames].forEach(name => {
-        // Use word boundaries and exact matching for Pokémon names
-        const regex = new RegExp(`(^|\\s)${name.replace(/[-]/g, '\\-')}(?=$|\\s)`, 'g');
-        let match;
-        while ((match = regex.exec(lowerInstruction)) !== null) {
-            pokemonReferences.push({
-                name: data[0].pokemons.find(p => p.name.toLowerCase() === name)?.name || name,
-                position: match.index,
-                lowerName: name
-            });
-        }
-    });
+    if (pokemonNames && pokemonNames.size > 0) {
+        [...pokemonNames].forEach(name => {
+            if (!name) return; // Skip if name is undefined/null
+            // Use word boundaries and exact matching for Pokémon names
+            // Escape hyphens correctly
+            const escapedName = name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            const regex = new RegExp(`(^|\\s)${escapedName}(?=$|\\s|'s|-)`, 'gi'); // Lookahead for space, end, 's, or -
+            let match;
+            while ((match = regex.exec(lowerInstruction)) !== null) {
+                 // Find the original casing from the data if possible
+                 let originalCaseName = name; // Default to lower if not found (shouldn't happen often)
+                 // This assumes `data` is loaded and contains team structures.
+                 // A more robust way might be to have a separate map of lowerCase -> OriginalCase
+                 if (data && data.length > 0 && data[0].pokemons) {
+                     const foundPokemon = data.flatMap(t => t.pokemons).find(p => p && p.name && p.name.toLowerCase() === name);
+                     if (foundPokemon) {
+                         originalCaseName = foundPokemon.name;
+                     }
+                 }
+
+                pokemonReferences.push({
+                    name: originalCaseName, // Use original casing
+                    position: match.index,
+                    lowerName: name // Keep lowerName for matching logic
+                });
+            }
+        });
+    }
+
 
     // Sort by position to process in order
     pokemonReferences.sort((a, b) => a.position - b.position);
@@ -132,70 +205,93 @@ function parseInstruction(instruction) {
     // Remove duplicates and prefer longer names (like Landorus-Therian over Landorus)
     const uniquePokemon = [];
     pokemonReferences.forEach(ref => {
-        const existing = uniquePokemon.find(p => 
-            p.lowerName.includes(ref.lowerName) || ref.lowerName.includes(p.lowerName)
-        );
-        if (!existing) {
-            uniquePokemon.push(ref);
-        } else if (ref.lowerName.length > existing.lowerName.length) {
-            // Replace with the longer name
-            const index = uniquePokemon.indexOf(existing);
-            uniquePokemon[index] = ref;
-        }
+        // Check if a name that *contains* this ref already exists OR if this ref *contains* an existing name
+         const isSubstring = uniquePokemon.some(p => p.lowerName.includes(ref.lowerName) && p.lowerName !== ref.lowerName);
+         const isSuperstring = uniquePokemon.some(p => ref.lowerName.includes(p.lowerName) && p.lowerName !== ref.lowerName);
+
+         if (isSubstring) {
+             // A longer name (e.g., Landorus-Therian) is already present, ignore the shorter one (Landorus)
+             return;
+         } else if (isSuperstring) {
+             // This ref is longer (e.g., Landorus-Therian), replace the shorter one (Landorus)
+             const indexToRemove = uniquePokemon.findIndex(p => ref.lowerName.includes(p.lowerName));
+             if (indexToRemove !== -1) {
+                 uniquePokemon.splice(indexToRemove, 1, ref); // Replace
+             } else {
+                  uniquePokemon.push(ref); // Should not happen if logic is correct, but fallback
+             }
+         } else if (!uniquePokemon.some(p => p.lowerName === ref.lowerName)) {
+             // It's a new, unrelated name
+             uniquePokemon.push(ref);
+         }
     });
 
-    parsed.pokemon = pokemonReferences.map(ref => ref.name);
 
-    // Process each Pokémon reference
+    parsed.pokemon = uniquePokemon.map(ref => ref.name); // Store original case names
+
+    // Process each Pokémon reference for items, moves, abilities
     for (let i = 0; i < uniquePokemon.length; i++) {
         const currentPokemon = uniquePokemon[i];
         const nextPokemon = i < uniquePokemon.length - 1 ? uniquePokemon[i + 1] : null;
-        
+
         // Extract the text relevant to this Pokémon (from current position to next Pokémon or end)
-        const start = currentPokemon.position + currentPokemon.lowerName.length;
+        const start = currentPokemon.position + currentPokemon.lowerName.length; // Use lowerName length for slicing lowerInstruction
         const end = nextPokemon ? nextPokemon.position : lowerInstruction.length;
         const pokemonText = lowerInstruction.slice(start, end).trim();
 
         // Look for "with" or "holding" clauses
-        const withMatch = pokemonText.match(/\bwith\b|\bholding\b/);
+        const withMatch = pokemonText.match(/\b(?:with|holding)\b/);
         if (withMatch) {
             const afterWith = pokemonText.slice(withMatch.index + withMatch[0].length).trim();
-            
-            // Split by commas or "and" but be careful with "and" in move names (like "Double-Edge")
-            const itemsAndMoves = afterWith.split(/(?:,\s*|\band\b)(?![^(]*\))/); // Negative lookahead for parentheses
-            
-            for (const part of itemsAndMoves.map(p => p.trim()).filter(p => p)) {
-                // Check for items
+
+            // Split by commas or "and" but be careful with "and" in move names
+            // Regex improved to better handle names with 'and' like "Swords Dance" vs separator "and"
+            const itemsAndDetails = afterWith.split(/\s*,\s*|\s+\band\b\s+(?!\w+[-']?\w+\s)/)
+                                            .map(p => p.trim())
+                                            .filter(p => p);
+
+
+            for (const part of itemsAndDetails) {
+                 let found = false;
+                // Check for items first (often more specific)
                 for (const item of allItems) {
-                    if (item && new RegExp(`(^|\\s)${item}(?=$|\\s)`).test(part)) {
+                    if (item && new RegExp(`(^|\\s)${item.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}(?=$|\\s)`, 'i').test(part)) {
                         parsed.pokemon_with_items.push({
-                            pokemon: currentPokemon.name,
-                            item
+                            pokemon: currentPokemon.name, // Use original case name
+                            item: item // Store lower case item name for matching
                         });
+                         found = true;
+                         break; // Assume only one item per part
                     }
                 }
-                
-                // Check for moves - only if they're not part of a Pokémon name
-                for (const move of allMoves) {
-                    if (move && 
-                        new RegExp(`(^|\\s)${move}(?=$|\\s)`).test(part) &&
-                        !uniquePokemon.some(p => p.lowerName.includes(move))) {
-                        parsed.pokemon_with_moves.push({
-                            pokemon: currentPokemon.name,
-                            move
-                        });
-                    }
-                }
-                
+                 if (found) continue; // If item found, move to next part
+
                 // Check for abilities - only if they're not part of a Pokémon name
                 for (const ability of allAbilities) {
-                    if (ability && 
-                        new RegExp(`(^|\\s)${ability}(?=$|\\s)`).test(part) &&
-                        !uniquePokemon.some(p => p.lowerName.includes(ability))) {
+                     if (ability &&
+                         new RegExp(`(^|\\s)${ability.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}(?=$|\\s)`, 'i').test(part) &&
+                         !uniquePokemon.some(p => p.lowerName.includes(ability))) {
                         parsed.pokemon_with_abilities.push({
-                            pokemon: currentPokemon.name,
-                            ability
+                            pokemon: currentPokemon.name, // Use original case name
+                            ability: ability // Store lower case ability name
                         });
+                         found = true;
+                        break; // Assume only one ability per part
+                    }
+                }
+                 if (found) continue; // If ability found, move to next part
+
+                // Check for moves - only if they're not part of a Pokémon name or ability
+                for (const move of allMoves) {
+                     if (move &&
+                         new RegExp(`(^|\\s)${move.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}(?=$|\\s)`, 'i').test(part) &&
+                         !uniquePokemon.some(p => p.lowerName.includes(move)) &&
+                         !parsed.pokemon_with_abilities.some(a => a.ability === move)) { // Avoid matching moves that are also ability names here
+                        parsed.pokemon_with_moves.push({
+                            pokemon: currentPokemon.name, // Use original case name
+                            move: move // Store lower case move name
+                        });
+                         // Don't break here, could mention multiple moves
                     }
                 }
             }
@@ -203,102 +299,135 @@ function parseInstruction(instruction) {
     }
 
     // Detect Pokémon with specific Tera types
-    const teraTypes = ["steel", "fighting", "dragon", "water", "electric", "electrik", "fairy", "fire", "ice", "bug", "insect", "normal", "grass", "poison", "psychic", "rock", "ground", "ghost", "flying", "dark", "stellar"];
+    const teraTypes = ["steel", "fighting", "dragon", "water", "electric", "fairy", "fire", "ice", "bug", "normal", "grass", "poison", "psychic", "rock", "ground", "ghost", "flying", "dark", "stellar"];
     teraTypes.forEach(tera => {
-        if (lowerInstruction.includes(`tera ${tera}`)) {
-            parsed.pokemon.forEach(pokemon => {
-                if (lowerInstruction.includes(`${pokemon.toLowerCase()} tera ${tera}`)) {
-                    parsed.pokemon_with_tera.push({ pokemon, tera_type: tera });
-                }
-            });
-        }
+        // Regex to find "pokemon name tera type" pattern
+         const teraRegex = new RegExp(`(${uniquePokemon.map(p => p.lowerName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})\\s+tera\\s+${tera}\\b`, 'gi');
+         let teraMatch;
+         while ((teraMatch = teraRegex.exec(lowerInstruction)) !== null) {
+            const pokemonNameLower = teraMatch[1];
+            // Find the original case name matching the lower case name found
+            const originalPokemon = uniquePokemon.find(p => p.lowerName === pokemonNameLower);
+             if (originalPokemon) {
+                parsed.pokemon_with_tera.push({
+                     pokemon: originalPokemon.name, // Use original case name
+                     tera_type: tera
+                });
+            }
+         }
+          // Also check for general "tera type" mentions not tied to a specific Pokémon in the "with" clause
+          if (new RegExp(`\\btera\\s+${tera}\\b`).test(lowerInstruction) && !parsed.pokemon_with_tera.some(pt => pt.tera_type === tera)) {
+              // If the instruction mentions "tera [type]" generally, and we haven't already assigned it to a Pokémon
+              // We might want a separate field for general tera requests, or just leave it unassigned for now.
+              // Let's assume for now it must be linked to a Pokemon mention like "Gholdengo tera steel"
+          }
     });
 
-    // Detect specific moves (additional checks beyond the "with" clause)
+     // --- NEW: Parse Size and Weight Requests ---
+     const sizeWeightRegex = /(\d+)\s+(small|tall|light|heavy)(?:\s+pokemon|\s+pokemons)?/gi;
+     let sizeWeightMatch;
+     while ((sizeWeightMatch = sizeWeightRegex.exec(lowerInstruction)) !== null) {
+         const count = parseInt(sizeWeightMatch[1], 10);
+         const type = sizeWeightMatch[2];
+
+         if (!isNaN(count) && count > 0) {
+             if (type === 'small' || type === 'tall') {
+                 parsed.size_requests.push({ type, count });
+             } else if (type === 'light' || type === 'heavy') {
+                 parsed.weight_requests.push({ type, count });
+             }
+         }
+     }
+     // --- END NEW ---
+
+
+    // Detect specific moves (general request, not tied to a Pokémon in "with" clause)
     allMoves.forEach(move => {
-        if (move && 
-            new RegExp(`(^|\\s)${move}(?=$|\\s)`).test(lowerInstruction) && 
-            !parsed.pokemon_with_moves.some(m => m.move === move) &&
-            !uniquePokemon.some(p => p.lowerName.includes(move))) {
+        if (move &&
+            new RegExp(`(^|\\s)${move.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}(?=$|\\s)`, 'i').test(lowerInstruction) &&
+            !parsed.pokemon_with_moves.some(pm => pm.move === move) && // Not already assigned via "with"
+            !uniquePokemon.some(p => p.lowerName.includes(move))) { // Not part of a pokemon name
             parsed.moves.push(move);
         }
     });
 
-    // Detect abilities (additional checks beyond the "with" clause)
+    // Detect specific abilities (general request)
     [...allAbilities].forEach(ability => {
-        if (ability && 
-            new RegExp(`(^|\\s)${ability}(?=$|\\s)`).test(lowerInstruction) && 
-            !parsed.pokemon_with_abilities.some(a => a.ability === ability) &&
-            !uniquePokemon.some(p => p.lowerName.includes(ability))) {
+        if (ability &&
+            new RegExp(`(^|\\s)${ability.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}(?=$|\\s)`, 'i').test(lowerInstruction) &&
+            !parsed.pokemon_with_abilities.some(pa => pa.ability === ability) && // Not already assigned via "with"
+            !uniquePokemon.some(p => p.lowerName.includes(ability))) { // Not part of a pokemon name
             parsed.abilities.push(ability);
         }
     });
 
-    // Detect Types with specific roles
+
+    // Detect Types with specific roles (Simplified for now)
     const roles = {
-        "strong attacker": ["attack", "physical attacker"],
+        "strong attacker": ["attack", "physical attacker", "attacker"],
         "strong special attacker": ["special attack", "special attacker"],
-        "defensive": ["defense", "defensive"],
+        "defensive": ["defense", "defensive", "physical defense"],
         "specially defensive": ["special defense", "specially defensive"],
-        "speedy": ["speed", "speedy"]
+        "speedy": ["speed", "speedy", "fast"],
+        "bulky": ["bulky", "hp", "health"],
+        "wall": ["wall"]
     };
     Object.entries(roles).forEach(([role, keywords]) => {
-        if (keywords.some(keyword => lowerInstruction.includes(keyword))) {
-            parsed.roles.push(role);
-            
-            teraTypes.forEach(type => {
-                if (new RegExp(`\\b${type}\\b.*\\b${keywords[0]}\\b|\\b${keywords[0]}\\b.*\\b${type}\\b`).test(lowerInstruction)) {
-                    parsed.types_with_roles.push({ type, role });
+        if (keywords.some(keyword => new RegExp(`\\b${keyword}\\b`).test(lowerInstruction))) {
+            parsed.roles.push(role); // General role request
+
+             // Link type to role if found together
+             teraTypes.forEach(type => { // Use teraTypes list as it's comprehensive
+                 // Look for patterns like "[type] [role]", "[role] [type]", "[type]-type [role]", etc.
+                 if (new RegExp(`\\b${type}(?:-type)?\\b.*\\b(${keywords.join('|')})\\b|\\b(${keywords.join('|')})\\b.*\\b${type}(?:-type)?\\b`, 'i').test(lowerInstruction)) {
+                     // Check if this specific type-role pair already exists
+                    if (!parsed.types_with_roles.some(tr => tr.type === type && tr.role === role)) {
+                         parsed.types_with_roles.push({ type, role });
+                    }
                 }
-            });
+             });
         }
     });
 
-    // Detect types
-    const types = ["steel", "fighting", "dragon", "water", "electric", "electrik", "fairy", "fire", "ice", "bug", "insect", "normal", "grass", "poison", "psychic", "rock", "ground", "ghost", "flying", "dark"];
-    types.forEach(type => {
-        if (instruction.toLowerCase().includes(`${type.toLowerCase()} type`) || 
-            instruction.toLowerCase().includes(`${type.toLowerCase()}-type`)) {
-            parsed.types.push(type);
-        }
-    });
 
-    // Detect team composition features
-    const teamFeatures = {
-        "rain team": ["rain", "rain team"],
-        "sun team": ["sun", "sun team"],
-        "sand team": ["sand", "sand team"],
-        "hail team": ["hail", "snow", "hail team"],
-        "trick room": ["trick room", "slow team"],
-        "hyper offense": ["hyper offense", "ho"],
-        "balance": ["balanced", "balance"],
-        "stall": ["stall", "defensive"]
-    };
-
-    Object.entries(teamFeatures).forEach(([feature, keywords]) => {
-        if (keywords.some(keyword => lowerInstruction.includes(keyword))) {
-            parsed.team_composition.push(feature);
-        }
+    // Detect general type mentions (e.g., "a water type")
+    teraTypes.forEach(type => {
+         // Look for "[type] type" or just the type name if it's unlikely to be part of another word
+         // Use word boundaries to avoid matching substrings like "dragonite" for "dragon"
+         if (new RegExp(`\\b${type}(?:-type)?\\b`, 'i').test(lowerInstruction)) {
+            // Add only if not already added via type-role requests
+             if (!parsed.types.includes(type) && !parsed.types_with_roles.some(tr => tr.type === type)) {
+                 parsed.types.push(type);
+             }
+         }
     });
 
     return parsed;
 }
 
+
 function matchTeam(instruction, team) {
     const parsed = parseInstruction(instruction);
     let matchCount = 0;
 
+     // --- Basic Data Check ---
+     if (!team || !team.pokemons || team.pokemons.length === 0) {
+         return 0; // Cannot match an empty or invalid team
+     }
+
     // Check for Pokémon in the instruction
-    team.pokemons.forEach(p => {
-        if (parsed.pokemon.map(name => name.toLowerCase()).includes(p.name.toLowerCase())) {
-            matchCount += 100;
+    parsed.pokemon.forEach(requestedPokemonName => {
+         // Match using original case names from parsed instruction against original case names in team data
+        if (team.pokemons.some(p => p && p.name === requestedPokemonName)) {
+            matchCount += 100; // High score for specific Pokémon match
         }
     });
 
     // Check for Pokémon with specific items
     parsed.pokemon_with_items.forEach(pokemonItem => {
         team.pokemons.forEach(p => {
-            if (p.name.toLowerCase() === pokemonItem.pokemon.toLowerCase() && p.item?.toLowerCase() === pokemonItem.item.toLowerCase()) {
+            // Match original case pokemon name, lower case item name
+            if (p && p.name === pokemonItem.pokemon && p.item?.toLowerCase() === pokemonItem.item) {
                 matchCount += 50;
             }
         });
@@ -307,7 +436,8 @@ function matchTeam(instruction, team) {
     // Check for Pokémon with specific Tera types
     parsed.pokemon_with_tera.forEach(pokemonTera => {
         team.pokemons.forEach(p => {
-            if (p.name.toLowerCase() === pokemonTera.pokemon.toLowerCase() && p.tera_type?.toLowerCase() === pokemonTera.tera_type.toLowerCase()) {
+            // Match original case pokemon name, lower case tera type
+             if (p && p.name === pokemonTera.pokemon && p.tera_type?.toLowerCase() === pokemonTera.tera_type) {
                 matchCount += 50;
             }
         });
@@ -316,7 +446,8 @@ function matchTeam(instruction, team) {
     // Check for Pokémon with specific abilities
     parsed.pokemon_with_abilities.forEach(pokemonAbility => {
         team.pokemons.forEach(p => {
-            if (p.name.toLowerCase() === pokemonAbility.pokemon.toLowerCase() && p.ability?.toLowerCase() === pokemonAbility.ability.toLowerCase()) {
+             // Match original case pokemon name, lower case ability
+             if (p && p.name === pokemonAbility.pokemon && p.ability?.toLowerCase() === pokemonAbility.ability) {
                 matchCount += 50;
             }
         });
@@ -325,248 +456,198 @@ function matchTeam(instruction, team) {
     // Check for Pokémon with specific moves
     parsed.pokemon_with_moves.forEach(pokemonMove => {
         team.pokemons.forEach(p => {
-            if (p.name.toLowerCase() === pokemonMove.pokemon.toLowerCase()) {
-                const hasMove = p.moves.some(m => {
-                    const moveName = typeof m === 'object' ? m.name.toLowerCase() : m.toLowerCase();
-                    return moveName === pokemonMove.move.toLowerCase();
-                });
-                if (hasMove) {
-                    matchCount += 25;
-                }
+             if (p && p.name === pokemonMove.pokemon) {
+                 const hasMove = p.moves?.some(m => {
+                     // Handle both string and object move formats
+                     const moveName = (typeof m === 'object' && m !== null ? m.name : m)?.toLowerCase();
+                     return moveName === pokemonMove.move; // Match lower case move name
+                 });
+                 if (hasMove) {
+                     matchCount += 25; // Lower score than item/ability/tera, but still significant
+                 }
             }
         });
     });
 
-    // Check for specific moves in the team
+     // --- NEW: Check Size and Weight Requests ---
+     parsed.size_requests.forEach(req => {
+         let count = 0;
+         team.pokemons.forEach(p => {
+             if (p && p.height !== null && p.height !== undefined) {
+                 if (req.type === 'small' && p.height <= SMALL_THRESHOLD) {
+                     count++;
+                 } else if (req.type === 'tall' && p.height >= TALL_THRESHOLD) {
+                     count++;
+                 }
+             }
+         });
+         if (count >= req.count) { // Check if team has *at least* the required number
+             matchCount += 40; // Add score for fulfilling the size request
+         }
+     });
+
+     parsed.weight_requests.forEach(req => {
+         let count = 0;
+         team.pokemons.forEach(p => {
+             if (p && p.weight !== null && p.weight !== undefined) {
+                 if (req.type === 'light' && p.weight <= LIGHT_THRESHOLD) {
+                     count++;
+                 } else if (req.type === 'heavy' && p.weight >= HEAVY_THRESHOLD) {
+                     count++;
+                 }
+             }
+         });
+         if (count >= req.count) { // Check if team has *at least* the required number
+             matchCount += 40; // Add score for fulfilling the weight request
+         }
+     });
+     // --- END NEW ---
+
+    // Check for specific moves generally in the team
     parsed.moves.forEach(move => {
-        const hasMove = team.pokemons.some(p => 
-            p.moves.some(m => {
-                const moveName = typeof m === 'object' ? m.name.toLowerCase() : m.toLowerCase();
-                return moveName === move.toLowerCase();
-            })
-        );
-        if (hasMove) {
-            matchCount += 15;
-        }
+         const hasMove = team.pokemons.some(p =>
+             p && p.moves?.some(m => {
+                 const moveName = (typeof m === 'object' && m !== null ? m.name : m)?.toLowerCase();
+                 return moveName === move; // Match lower case move name
+             })
+         );
+         if (hasMove) {
+             matchCount += 15; // Lower score for general move presence
+         }
     });
 
-    // Check for Pokémon with specific roles
+     // Check for specific abilities generally in the team
+     parsed.abilities.forEach(ability => {
+         const hasAbility = team.pokemons.some(p => p && p.ability?.toLowerCase() === ability); // Match lower case ability
+         if (hasAbility) {
+             matchCount += 15; // Lower score for general ability presence
+         }
+     });
+
+
+    // Check for Types with specific roles (simplified check based on base stats)
     parsed.types_with_roles.forEach(typeRole => {
-        team.pokemons.forEach(p => {
-            if (p.types?.some(type => type.toLowerCase() === typeRole.type.toLowerCase())) {
-                const stats = p.stats || {};
-                if (typeRole.role === "strong attacker" && stats.attack >= 100) {
-                    matchCount += 20;
-                }
-                if (typeRole.role === "strong special attacker" && stats["special-attack"] >= 100) {
-                    matchCount += 20;
-                }
-                if (typeRole.role === "defensive" && stats.defense >= 100) {
-                    matchCount += 20;
-                }
-                if (typeRole.role === "specially defensive" && stats["special-defense"] >= 100) {
-                    matchCount += 20;
-                }
-                if (typeRole.role === "speedy" && stats.speed >= 100) {
-                    matchCount += 20;
-                }
-                if (typeRole.role === "bulky" && stats.hp >= 100) {
-                    matchCount += 20;
-                }
-                if (typeRole.role === "wall" && (stats.defense >= 100 || stats["special-defense"] >= 100)) {
-                    matchCount += 20;
-                }
-            }
-        });
-    });
+         team.pokemons.forEach(p => {
+             if (p && p.types?.some(type => type.toLowerCase() === typeRole.type.toLowerCase())) {
+                 const stats = p.stats || {};
+                 let roleMatch = false;
+                 // Basic stat check (adjust thresholds as needed)
+                 if ((typeRole.role === "strong attacker") && stats.attack >= 110) roleMatch = true;
+                 if ((typeRole.role === "strong special attacker") && stats['special-attack'] >= 110) roleMatch = true;
+                 if ((typeRole.role === "defensive") && stats.defense >= 100) roleMatch = true;
+                 if ((typeRole.role === "specially defensive") && stats['special-defense'] >= 100) roleMatch = true;
+                 if ((typeRole.role === "speedy") && stats.speed >= 100) roleMatch = true;
+                 if ((typeRole.role === "bulky") && stats.hp >= 100) roleMatch = true;
+                 if ((typeRole.role === "wall") && (stats.defense >= 110 || stats['special-defense'] >= 110)) roleMatch = true;
 
-    // Check for types in the instruction
-    team.pokemons.forEach(p => {
-        if (p.types?.some(type => parsed.types.map(t => t.toLowerCase()).includes(type.toLowerCase()))) {
-            matchCount += 5;
+                 if (roleMatch) {
+                     matchCount += 20;
+                 }
+             }
+         });
+     });
+
+    // Check for general types requested
+    parsed.types.forEach(type => {
+        if (team.pokemons.some(p => p && p.types?.some(t => t.toLowerCase() === type.toLowerCase()))) {
+            matchCount += 5; // Low score for general type presence
         }
     });
 
-    // Check for abilities in the instruction
-    parsed.abilities.forEach(ability => {
-        const hasAbility = team.pokemons.some(p => p.ability?.toLowerCase() === ability.toLowerCase());
-        if (hasAbility) {
-            matchCount += 15;
-        }
-    });
+    // Check for general roles requested (slightly higher score than just type)
+     parsed.roles.forEach(role => {
+         let roleFound = false;
+         team.pokemons.forEach(p => {
+             if (p && p.stats) {
+                  const stats = p.stats;
+                  if ((role === "strong attacker") && stats.attack >= 110) roleFound = true;
+                  if ((role === "strong special attacker") && stats['special-attack'] >= 110) roleFound = true;
+                  if ((role === "defensive") && stats.defense >= 100) roleFound = true;
+                  if ((role === "specially defensive") && stats['special-defense'] >= 100) roleFound = true;
+                  if ((role === "speedy") && stats.speed >= 100) roleFound = true;
+                  if ((role === "bulky") && stats.hp >= 100) roleFound = true;
+                  if ((role === "wall") && (stats.defense >= 110 || stats['special-defense'] >= 110)) roleFound = true;
+             }
+         });
+         if (roleFound) {
+             matchCount += 10;
+         }
+     });
 
-    // Check for team composition features
-    parsed.team_composition.forEach(feature => {
-        // Rain team check
-        if (feature === "rain team") {
-            const hasRainSetter = team.pokemons.some(p => 
-                p.ability?.toLowerCase() === "drizzle" || 
-                p.moves.some(m => {
-                    const moveName = typeof m === 'object' ? m.name.toLowerCase() : m.toLowerCase();
-                    return moveName === "rain dance";
-                })
-            );
-            const hasRainAbusers = team.pokemons.some(p => 
-                p.ability?.toLowerCase() === "swift swim" ||
-                p.types.includes("water")
-            );
-            if (hasRainSetter && hasRainAbusers) {
-                matchCount += 30;
-            } else if (hasRainSetter || hasRainAbusers) {
-                matchCount += 15;
-            }
-        }
-        
-        // Sun team check
-        if (feature === "sun team") {
-            const hasSunSetter = team.pokemons.some(p => 
-                p.ability?.toLowerCase() === "drought" || 
-                p.moves.some(m => {
-                    const moveName = typeof m === 'object' ? m.name.toLowerCase() : m.toLowerCase();
-                    return moveName === "sunny day";
-                })
-            );
-            const hasSunAbusers = team.pokemons.some(p => 
-                p.ability?.toLowerCase() === "chlorophyll" ||
-                p.types.includes("fire")
-            );
-            if (hasSunSetter && hasSunAbusers) {
-                matchCount += 30;
-            } else if (hasSunSetter || hasSunAbusers) {
-                matchCount += 15;
-            }
-        }
-        
-        // Sand team check
-        if (feature === "sand team") {
-            const hasSandSetter = team.pokemons.some(p => 
-                p.ability?.toLowerCase() === "sand stream" || 
-                p.moves.some(m => {
-                    const moveName = typeof m === 'object' ? m.name.toLowerCase() : m.toLowerCase();
-                    return moveName === "sandstorm";
-                })
-            );
-            const hasSandAbusers = team.pokemons.some(p => 
-                p.ability?.toLowerCase() === "sand rush" ||
-                p.ability?.toLowerCase() === "sand veil" ||
-                p.types.includes("rock") ||
-                p.types.includes("ground") ||
-                p.types.includes("steel")
-            );
-            if (hasSandSetter && hasSandAbusers) {
-                matchCount += 30;
-            } else if (hasSandSetter || hasSandAbusers) {
-                matchCount += 15;
-            }
-        }
-        
-        // Hail team check
-        if (feature === "hail team") {
-            const hasHailSetter = team.pokemons.some(p => 
-                p.ability?.toLowerCase() === "snow warning" || 
-                p.moves.some(m => {
-                    const moveName = typeof m === 'object' ? m.name.toLowerCase() : m.toLowerCase();
-                    return moveName === "hail";
-                })
-            );
-            const hasHailAbusers = team.pokemons.some(p => 
-                p.ability?.toLowerCase() === "slush rush" ||
-                p.types.includes("ice")
-            );
-            if (hasHailSetter && hasHailAbusers) {
-                matchCount += 30;
-            } else if (hasHailSetter || hasHailAbusers) {
-                matchCount += 15;
-            }
-        }
-        
-        // Trick Room check
-        if (feature === "trick room") {
-            const hasTrickRoom = team.pokemons.some(p => 
-                p.moves.some(m => {
-                    const moveName = typeof m === 'object' ? m.name.toLowerCase() : m.toLowerCase();
-                    return moveName === "trick room";
-                })
-            );
-            const hasSlowPokemon = team.pokemons.some(p => 
-                (p.stats?.speed || 0) <= 50
-            );
-            if (hasTrickRoom && hasSlowPokemon) {
-                matchCount += 30;
-            } else if (hasTrickRoom || hasSlowPokemon) {
-                matchCount += 15;
-            }
-        }
-        
-        // Hyper offense check
-        if (feature === "hyper offense") {
-            const offensivePokemonCount = team.pokemons.filter(p => {
-                const stats = p.stats || {};
-                return (stats.attack >= 100 || stats["special-attack"] >= 100) && 
-                       (stats.speed >= 90);
-            }).length;
-            if (offensivePokemonCount >= 4) {
-                matchCount += 30;
-            } else if (offensivePokemonCount >= 2) {
-                matchCount += 15;
-            }
-        }
-        
-        // Stall check
-        if (feature === "stall") {
-            const defensivePokemonCount = team.pokemons.filter(p => {
-                const stats = p.stats || {};
-                return (stats.defense >= 100 || stats["special-defense"] >= 100) && 
-                       (stats.hp >= 90);
-            }).length;
-            if (defensivePokemonCount >= 4) {
-                matchCount += 30;
-            } else if (defensivePokemonCount >= 2) {
-                matchCount += 15;
-            }
-        }
-    });
 
     return matchCount;
 }
 
 function generatePokepaste(instruction) {
+    // Ensure data is loaded before attempting generation
+    if (!data) {
+        console.error("Data not loaded yet. Please wait for data initialization.");
+        // Return an empty result or handle appropriately
+         return [[], true]; // Indicate no detection possible due to missing data
+    }
+
     const parsed = parseInstruction(instruction);
-    console.log(parsed);
+    console.log("Parsed Instruction:", parsed);
 
     // Calculate match scores for all teams
-    const matchScores = data.map(team => matchTeam(instruction, team));
+    const matchScores = data.map((team, index) => {
+        try {
+            return matchTeam(instruction, team);
+        } catch (error) {
+            console.error(`Error matching team index ${index} (Filename: ${team?.filename}):`, error);
+            return 0; // Assign score 0 if error occurs during matching
+        }
+    });
+    //console.log("Match Scores:", matchScores);
 
     // Find the maximum match score
-    const maxScore = Math.max(...matchScores);
+    const maxScore = Math.max(0, ...matchScores.filter(score => !isNaN(score) && isFinite(score))); // Ensure maxScore is non-negative and finite
 
-    const noDetect = maxScore == 0;
+    // Determine if any significant match was found
+     // Consider a threshold score instead of just > 0 if needed
+    const noDetect = maxScore === 0;
 
-    // Find all teams with the maximum match score
-    const bestTeams = data.filter((team, index) => matchScores[index] === maxScore);
+    console.log("Max Score:", maxScore, "No Detect:", noDetect);
+
+    // Find all teams with the maximum match score (and score > 0)
+    const bestTeams = data.filter((team, index) => matchScores[index] === maxScore && maxScore > 0);
 
     // Extract only the required fields for each team
     const simplifiedTeams = bestTeams.map(team => ({
         filename: team.filename || "unknown",
-        pokemons: team.pokemons.map(p => ({
-            name: p.name,
-            ability: p.ability,
-            item: p.item,
-            moves: p.moves.slice(0, 4).map(m => {
-                if (typeof m === 'object') {
-                    return {
-                        name: m.name,
-                        type: m.type
-                    };
-                }
-                return {
-                    name: m,
-                    type: 'unknown'
-                };
-            }),
-            tera_type: p.tera_type,
-            sprite: p.sprites?.front_default
-        }))
+        pokemons: (team.pokemons || []).map(p => {
+            // Handle potentially missing pokemon data gracefully
+             if (!p) return null; // Skip if pokemon entry is null/undefined
+
+             // Ensure moves is an array, default to empty if not
+             const moves = Array.isArray(p.moves) ? p.moves : [];
+
+            return {
+                name: p.name || "Unknown Pokemon",
+                ability: p.ability || "Unknown Ability",
+                item: p.item || "No Item",
+                // Process moves, ensuring they are objects with name/type
+                moves: moves.slice(0, 4).map(m => {
+                    if (typeof m === 'object' && m !== null && m.name) {
+                        return {
+                            name: m.name,
+                            type: m.type || 'unknown' // Provide default type
+                        };
+                    } else if (typeof m === 'string') {
+                         // If it's just a string, create the object structure
+                        return {
+                            name: m,
+                            type: 'unknown' // Type might not be available
+                        };
+                    }
+                     // Handle unexpected move format
+                     return { name: 'Unknown Move', type: 'unknown' };
+                 }).filter(m => m.name !== 'Unknown Move'), // Filter out unknowns if needed
+                tera_type: p.tera_type || "None",
+                // Use optional chaining for sprite safety
+                sprite: p.sprites?.front_default || null // Default to null if no sprite
+            };
+         }).filter(p => p !== null) // Remove any null entries from mapping malformed pokemon data
     }));
 
     return [simplifiedTeams, noDetect];

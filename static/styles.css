@@ -8,31 +8,57 @@
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
 
+/* --- Base and Dark Mode --- */
 body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   font-size: 14px; /* Default Excel-like font size */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #e5e7eb; /* Default light background (Tailwind gray-200) */
+  color: #1f2937; /* Default dark text (Tailwind gray-800) */
 }
 
-/* Basic Excel Grid Structure */
+html.dark body {
+  background-color: #111827; /* Tailwind gray-900 */
+  color: #d1d5db; /* Tailwind gray-300 */
+}
+
+/* Ensure links have appropriate dark mode colors */
+html.dark a {
+   color: #60a5fa; /* Tailwind blue-400 */
+}
+html.dark a:hover {
+   color: #93c5fd; /* Tailwind blue-300 */
+}
+html.dark .excel-link { /* Override for specific links if needed */
+    color: #59AFFF; /* Lighter blue for dark mode */
+}
+html.dark .excel-link:hover {
+    color: #A9D7FF;
+}
+
+
+/* --- Basic Excel Grid Structure --- */
 .excel-sheet {
   display: flex;
   flex-direction: column;
   width: 100%;
+  background-color: white; /* Default sheet background */
+}
+html.dark .excel-sheet {
+    background-color: #1f2937; /* gray-800 */
 }
 
 .excel-row {
   display: grid;
-   /* Define columns: Adjust widths as needed */
-  grid-template-columns: 60px 120px 100px 120px 80px repeat(4, minmax(100px, 1fr));
-  border-bottom: 1px solid #e5e7eb; /* Light gray border like Excel */
-  min-height: 36px; /* Minimum row height */
-  align-items: center; /* Vertically align content */
+   /* Define columns: Adjusted Name/Ability for wrapping */
+  grid-template-columns: 60px minmax(140px, 1fr) 110px minmax(140px, 1fr) 90px repeat(4, minmax(110px, 1fr));
+  border-bottom: 1px solid #e5e7eb; /* Light gray border */
+  min-height: 40px; /* Slightly increased min-height for wrapped content */
+  align-items: center; /* Vertically align content by default */
 }
-
-.dark .excel-row {
-  border-bottom-color: #4b5563; /* Darker border for dark mode */
+html.dark .excel-row {
+  border-bottom-color: #4b5563; /* Darker border */
 }
 
 .excel-row:last-child {
@@ -40,19 +66,18 @@ body {
 }
 
 .excel-cell {
-  padding: 4px 8px; /* Cell padding */
+  padding: 6px 8px; /* Increased padding slightly */
   border-right: 1px solid #e5e7eb; /* Vertical cell borders */
-  overflow: hidden; /* Prevent content overflow */
+  overflow: hidden; /* Prevent content overflow by default */
   text-overflow: ellipsis; /* Add ellipsis for overflow */
-  white-space: nowrap; /* Keep content on one line */
+  white-space: nowrap; /* Keep content on one line by default */
   font-size: 0.8rem; /* Slightly smaller font in cells */
-  line-height: 1.2; /* Adjust line height */
-  min-height: 28px; /* Ensure cell height consistency */
-  display: flex;
-  align-items: center;
+  line-height: 1.3; /* Adjust line height */
+  min-height: 32px; /* Ensure cell height consistency */
+  display: flex; /* Use flex for alignment */
+  align-items: center; /* Center align content vertically */
 }
-
-.dark .excel-cell {
+html.dark .excel-cell {
   border-right-color: #4b5563;
 }
 
@@ -60,7 +85,19 @@ body {
   border-right: none; /* No border for the last cell in a row */
 }
 
-/* Specific Cell Styling */
+/* --- Specific Cell Styling --- */
+
+/* Allow wrapping for Name and Ability */
+.excel-cell.cell-wrap {
+    white-space: normal; /* Allow wrapping */
+    overflow-wrap: break-word; /* Break long words */
+    overflow: visible; /* Allow content to overflow height if needed (row height adjusts) */
+    text-overflow: clip;
+    align-items: flex-start; /* Align text to top when wrapped */
+    padding-top: 8px; /* Adjust padding for top alignment */
+    padding-bottom: 8px;
+}
+
 .excel-cell.cell-sprite img {
     display: block; /* Ensure image behaves like a block */
     margin: auto; /* Center image */
@@ -68,9 +105,22 @@ body {
 .excel-cell.cell-item {
     display: flex;
     align-items: center;
+    gap: 4px; /* Space between item image and text */
 }
+.excel-cell.cell-item .item-fallback-text {
+    font-size: 0.7rem; /* Smaller text for fallback */
+    color: #6b7280; /* Muted color */
+}
+html.dark .excel-cell.cell-item .item-fallback-text {
+     color: #9ca3af;
+}
+
 .excel-cell.cell-tera {
     text-align: center;
+    justify-content: center; /* Center badge horizontally */
+}
+.excel-cell.cell-move {
+    gap: 3px; /* Space between type badge and move name */
 }
 
 /* Header Row Styling */
@@ -84,29 +134,46 @@ body {
   top: 0; /* Stick to the top */
   z-index: 10; /* Ensure header is above content */
 }
-.dark .header-row {
+html.dark .header-row {
   background-color: #374151; /* Darker header for dark mode */
   color: #d1d5db;
   border-color: #4b5563;
 }
-.dark .header-row .excel-cell {
+html.dark .header-row .excel-cell {
    border-right-color: #4b5563; /* Match header border */
 }
 
 /* Alternating Row Colors */
 /* Applied via Tailwind classes in script.js: bg-white/bg-gray-50 and dark:bg-gray-800/dark:bg-gray-850 */
-.dark .bg-gray-850 { /* Custom utility for slightly darker rows */
-    background-color: #1f2937cc; /* Slightly darker than 800 */
+html.dark .bg-gray-50 { background-color: #1f2937cc; } /* Custom dark for gray-50 -> slightly darker */
+html.dark .bg-white { background-color: #1f2937; } /* gray-800 */
+
+/* Custom class for alternating dark rows */
+.dark-row-alt {
+    background-color: #1a2331; /* Slightly different dark shade */
 }
 
-
-/* Formula Bar Style */
+/* --- Formula Bar, Buttons, Inputs --- */
 #instruction {
   font-family: monospace; /* Monospace font often used in formula bars */
   font-size: 0.85rem;
+  background-color: #ffffff;
+  border-color: #d1d5db; /* gray-300 */
+  color: #1f2937;
 }
+html.dark #instruction {
+  background-color: #374151; /* gray-700 */
+  border-color: #4b5563; /* gray-600 */
+  color: #d1d5db;
+}
+html.dark #instruction::placeholder { color: #6b7280; opacity: 1; }
+html.dark #instruction:-ms-input-placeholder { color: #6b7280; }
+html.dark #instruction::-ms-input-placeholder { color: #6b7280; }
+::placeholder { color: #9ca3af; opacity: 1; }
+:-ms-input-placeholder { color: #9ca3af; }
+::-ms-input-placeholder { color: #9ca3af; }
 
-/* Button Styles (Excel-like) */
+
 #search-btn, #copy-all-btn, #format-help-btn, #theme-toggle {
   border: 1px solid #a0aec0; /* Standard button border */
   border-radius: 2px; /* Less rounded corners */
@@ -115,6 +182,7 @@ body {
   font-weight: 500;
   box-shadow: 0 1px 1px rgba(0,0,0,0.05);
   transition: background-color 0.15s ease, border-color 0.15s ease;
+  color: #374151; /* Default button text color */
 }
 #search-btn:hover, #copy-all-btn:hover {
    filter: brightness(1.1);
@@ -127,14 +195,15 @@ body {
    border-color: #9ca3af;
 }
 
-.dark #search-btn, .dark #copy-all-btn, .dark #format-help-btn, .dark #theme-toggle {
+html.dark #search-btn, html.dark #copy-all-btn, html.dark #format-help-btn, html.dark #theme-toggle {
    border-color: #4b5563;
    box-shadow: 0 1px 1px rgba(255,255,255,0.05);
+   color: #d1d5db; /* Dark mode button text color */
 }
-.dark #format-help-btn, .dark #theme-toggle {
+html.dark #format-help-btn, html.dark #theme-toggle {
    background-color: #374151;
 }
-.dark #format-help-btn:hover, .dark #theme-toggle:hover {
+html.dark #format-help-btn:hover, html.dark #theme-toggle:hover {
    background-color: #4b5563;
    border-color: #5a6679;
 }
@@ -150,11 +219,12 @@ body {
     border-color: #0B572F;
      filter: none; /* Disable brightness filter for green buttons */
 }
-.dark #search-btn, .dark #copy-all-btn {
+html.dark #search-btn, html.dark #copy-all-btn {
      background-color: #16A34A; /* Lighter green for dark mode */
      border-color: #107C41;
+     color: white; /* Keep text white */
 }
-.dark #search-btn:hover, .dark #copy-all-btn:hover {
+html.dark #search-btn:hover, html.dark #copy-all-btn:hover {
      background-color: #107C41;
      border-color: #0E6A38;
 }
@@ -165,6 +235,7 @@ body {
   height: 0.8rem;
   display: inline-block; /* Position correctly within button */
   vertical-align: middle;
+  position: relative; /* Needed for absolute positioning of divs */
 }
 .excel-spinner div {
   box-sizing: border-box;
@@ -186,6 +257,10 @@ body {
   100% { transform: rotate(360deg); }
 }
 
+.hidden {
+  display: none;
+}
+
 /* Copy Message Styling */
 #global-copy-message.excel-copy-message {
   background-color: #E6F2ED; /* Light green background */
@@ -198,17 +273,19 @@ body {
   transition: transform 0.3s ease-out, opacity 0.3s ease-out; /* Smooth transition */
   opacity: 0; /* Start hidden */
   transform: translateX(-50%) translateY(-150%); /* Start off-screen */
+  pointer-events: none; /* Prevent interaction when hidden */
+}
+#global-copy-message.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0); /* Slide in */
+    pointer-events: auto;
 }
 
-.dark #global-copy-message.excel-copy-message {
+html.dark #global-copy-message.excel-copy-message {
   background-color: #0B572F;
   color: #D1FAE5;
   border-color: #16A34A;
 }
-
-/* Style for when the copy message is shown (handled by JS) */
-/* Add transform/opacity changes directly in JS for simplicity */
-
 
 /* Type Badges (Simplified Excel Style) */
 .type-badge-excel {
@@ -241,104 +318,149 @@ body {
   text-align: center;
   box-shadow: inset 0 0 3px rgba(255,255,255,0.3); /* Subtle inner glow */
 }
+html.dark .tera-badge-excel {
+    border-color: rgba(255, 255, 255, 0.2);
+    text-shadow: 0 1px 1px rgba(0,0,0,0.5);
+}
 
 
-/* Type Colors (Keep these as they are essential) */
-.type-normal, .dark .type-normal { background-color: #A8A878; }
-.type-fire, .dark .type-fire { background-color: #F08030; }
-.type-water, .dark .type-water { background-color: #6890F0; }
-.type-electric, .dark .type-electric { background-color: #F8D030; color: #333; text-shadow: none;} /* Darker text for light background */
-.type-grass, .dark .type-grass { background-color: #78C850; }
-.type-ice, .dark .type-ice { background-color: #98D8D8; color: #333; text-shadow: none;} /* Darker text */
-.type-fighting, .dark .type-fighting { background-color: #C03028; }
-.type-poison, .dark .type-poison { background-color: #A040A0; }
-.type-ground, .dark .type-ground { background-color: #E0C068; color: #333; text-shadow: none;} /* Darker text */
-.type-flying, .dark .type-flying { background-color: #A890F0; }
-.type-psychic, .dark .type-psychic { background-color: #F85888; }
-.type-bug, .dark .type-bug { background-color: #A8B820; }
-.type-rock, .dark .type-rock { background-color: #B8A038; }
-.type-ghost, .dark .type-ghost { background-color: #705898; }
-.type-dragon, .dark .type-dragon { background-color: #7038F8; }
-.type-dark, .dark .type-dark { background-color: #705848; }
-.type-steel, .dark .type-steel { background-color: #B8B8D0; color: #333; text-shadow: none;} /* Darker text */
-.type-fairy, .dark .type-fairy { background-color: #EE99AC; color: #333; text-shadow: none;} /* Darker text */
-.type-stellar, .dark .type-stellar {
+/* --- Type Colors (Keep these as they are essential) --- */
+.type-normal { background-color: #A8A878; }
+.type-fire { background-color: #F08030; }
+.type-water { background-color: #6890F0; }
+.type-electric { background-color: #F8D030; color: #333; text-shadow: none;} /* Darker text */
+.type-grass { background-color: #78C850; }
+.type-ice { background-color: #98D8D8; color: #333; text-shadow: none;} /* Darker text */
+.type-fighting { background-color: #C03028; }
+.type-poison { background-color: #A040A0; }
+.type-ground { background-color: #E0C068; color: #333; text-shadow: none;} /* Darker text */
+.type-flying { background-color: #A890F0; }
+.type-psychic { background-color: #F85888; }
+.type-bug { background-color: #A8B820; }
+.type-rock { background-color: #B8A038; }
+.type-ghost { background-color: #705898; }
+.type-dragon { background-color: #7038F8; }
+.type-dark { background-color: #705848; }
+.type-steel { background-color: #B8B8D0; color: #333; text-shadow: none;} /* Darker text */
+.type-fairy { background-color: #EE99AC; color: #333; text-shadow: none;} /* Darker text */
+.type-stellar {
      background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
      color: white; text-shadow: 0 1px 1px rgba(0,0,0,0.5);
 }
-.type-unknown, .dark .type-unknown, .type-none, .dark .type-none { background-color: #68A090; }
+.type-unknown, .type-none { background-color: #68A090; }
+/* Ensure dark mode doesn't override specific type colors unless needed */
+html.dark .type-electric, html.dark .type-ice, html.dark .type-ground,
+html.dark .type-steel, html.dark .type-fairy { color: #333; text-shadow: none; }
 
 
-/* Other Teams Preview */
+/* --- Other Teams Preview --- */
 .other-team-preview {
     font-size: 0.75rem; /* Smaller font for previews */
+    border: 1px solid #d1d5db; /* gray-300 */
+    background-color: #f9fafb; /* gray-50 */
+    transition: background-color 0.15s ease;
+}
+html.dark .other-team-preview {
+    border-color: #4b5563; /* gray-600 */
+    background-color: #374151; /* gray-700 */
+}
+.other-team-preview:hover {
+    background-color: #f3f4f6; /* gray-100 */
+}
+html.dark .other-team-preview:hover {
+    background-color: #4b5563; /* gray-600 */
 }
 .other-team-preview img {
     width: 1.1rem; /* Smaller sprites */
     height: 1.1rem;
 }
-
-/* Links */
-.excel-link {
-    text-decoration: underline;
-    color: #0057CC; /* Standard link blue */
+.other-team-preview .team-name-preview {
+    color: #374151; /* gray-700 */
 }
-.dark .excel-link {
-    color: #59AFFF; /* Lighter blue for dark mode */
-}
-.excel-link:hover {
-    color: #003380;
-}
-.dark .excel-link:hover {
-    color: #A9D7FF;
+html.dark .other-team-preview .team-name-preview {
+     color: #d1d5db; /* gray-300 */
 }
 
-/* Help Section Code Style */
+
+/* --- Help Section --- */
+#format-help {
+    background-color: #f9fafb; /* gray-50 */
+    border: 1px solid #e5e7eb; /* gray-200 */
+    /* Transition properties */
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out, max-height 0.3s ease-out;
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0; /* Start collapsed */
+    overflow: hidden; /* Hide content when collapsed */
+    pointer-events: none;
+}
+#format-help.visible {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 500px; /* Allow it to expand (adjust as needed) */
+    pointer-events: auto;
+    margin-bottom: 1rem; /* Add margin back when visible */
+}
+html.dark #format-help {
+    background-color: #1f2937; /* gray-800 */
+    border-color: #4b5563; /* gray-600 */
+}
+#format-help h3 { color: #111827; } /* gray-900 */
+html.dark #format-help h3 { color: #f9fafb; } /* gray-50 */
+#format-help p, #format-help ul { color: #4b5563; } /* gray-600 */
+html.dark #format-help p, html.dark #format-help ul { color: #9ca3af; } /* gray-400 */
+
 #format-help code {
     font-size: 0.75rem;
     padding: 1px 3px;
-    border: 1px solid #d1d5db;
+    border: 1px solid #d1d5db; /* gray-300 */
+    background-color: #e5e7eb; /* gray-200 */
+    color: #374151; /* gray-700 */
+    border-radius: 2px;
 }
-.dark #format-help code {
-    border-color: #4b5563;
-}
-
-/* Ensure placeholder has correct color */
-::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
-  color: #9ca3af;
-  opacity: 1; /* Firefox */
-}
-:-ms-input-placeholder { /* Internet Explorer 10-11 */
-  color: #9ca3af;
-}
-::-ms-input-placeholder { /* Microsoft Edge */
-  color: #9ca3af;
-}
-.dark ::placeholder {
-  color: #6b7280;
-}
-.dark :-ms-input-placeholder {
-  color: #6b7280;
-}
-.dark ::-ms-input-placeholder {
-  color: #6b7280;
+html.dark #format-help code {
+    border-color: #4b5563; /* gray-600 */
+    background-color: #374151; /* gray-700 */
+    color: #d1d5db; /* gray-300 */
 }
 
-/* Add basic responsive handling if needed */
+/* --- General Dark Mode Overrides (Tailwind fallbacks) --- */
+/* Add explicit dark styles for elements that might be missed by utility classes */
+html.dark .bg-gray-50 { background-color: #1f2937cc; } /* Slightly transparent gray-800 */
+html.dark .bg-gray-100 { background-color: #1f2937; } /* gray-800 */
+html.dark .bg-gray-200 { background-color: #374151; } /* gray-700 */
+html.dark .bg-white { background-color: #1f2937; } /* gray-800 */
+
+html.dark .border-gray-300 { border-color: #4b5563; } /* gray-600 */
+html.dark .border-gray-400 { border-color: #5a6679; } /* gray-500 */
+html.dark .border-gray-700 { border-color: #374151; } /* gray-700 (adjust if needed) */
+
+html.dark .text-gray-500 { color: #9ca3af; } /* gray-400 */
+html.dark .text-gray-600 { color: #d1d5db; } /* gray-300 */
+html.dark .text-gray-700 { color: #e5e7eb; } /* gray-200 */
+html.dark .text-gray-800 { color: #f3f4f6; } /* gray-100 */
+html.dark .text-gray-900 { color: #f9fafb; } /* gray-50 */
+
+
+/* Responsive adjustments */
 @media (max-width: 768px) {
     .excel-row {
         /* Allow columns to wrap or introduce horizontal scroll */
         /* Simple approach: Make it scrollable */
-        min-width: 800px; /* Force minimum width to encourage scrolling */
+        min-width: 900px; /* Force minimum width to encourage scrolling */
     }
-     .excel-sheet {
-         overflow-x: auto; /* Enable horizontal scrolling for the sheet */
+     .excel-sheet-container { /* Add a wrapper div if needed */
+         overflow-x: auto; /* Enable horizontal scrolling for the sheet container */
      }
      #team-header {
           /* Ensure header scrolls with content */
-         position: relative; /* Or adjust sticky behaviour */
+         position: relative; /* Or adjust sticky behaviour if it breaks layout */
+         top: auto;
+         z-index: 1; /* Lower z-index if not sticky */
      }
      .header-row {
           position: relative; /* Disable sticky header on small screens if problematic */
+          top: auto;
+          z-index: 1;
      }
 }
