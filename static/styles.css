@@ -1,414 +1,344 @@
-/* Custom font for nerdy feel */
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
+/* Import Tailwind base styles (optional if using CDN fully) */
+/* @import 'tailwindcss/base'; */
+/* @import 'tailwindcss/components'; */
+/* @import 'tailwindcss/utilities'; */
 
-/* Base Styles */
+/* Custom font to mimic Excel (use system sans-serif fonts) */
+.font-excel {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+}
+
 body {
-  font-family: "Manrope", sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  font-size: 14px; /* Default Excel-like font size */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Dark Mode */
-.dark body {
-  background-color: #1a1a1a;
-  color: #e5e7eb;
-}
-
-/* Title */
-.team-title {
-  margin: 0;
-}
-
-/* Card Styles */
-.pokemon-card {
-  background: #fff7ed;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border: 2px solid #fbbf24;
-  width: 100%;
-  max-width: 320px;
-  margin: 0 auto;
-}
-
-.dark .pokemon-card {
-  background: #2d3748;
-  border-color: #4a5568;
-  color: #e5e7eb;
-}
-
-.pokemon-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* Card Content Layout */
-.pokemon-card .card-content {
-  padding: 0.75rem;
-  display: grid;
-  grid-template-columns: 100px 1fr;
-  gap: 0.75rem;
-}
-
-.pokemon-card .pokemon-image {
+/* Basic Excel Grid Structure */
+.excel-sheet {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  width: 100%;
 }
 
-.pokemon-card .pokemon-image img {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 0.5rem;
+.excel-row {
+  display: grid;
+   /* Define columns: Adjust widths as needed */
+  grid-template-columns: 60px 120px 100px 120px 80px repeat(4, minmax(100px, 1fr));
+  border-bottom: 1px solid #e5e7eb; /* Light gray border like Excel */
+  min-height: 36px; /* Minimum row height */
+  align-items: center; /* Vertically align content */
 }
 
-.pokemon-card .pokemon-info {
-  font-size: 0.875rem;
+.dark .excel-row {
+  border-bottom-color: #4b5563; /* Darker border for dark mode */
 }
 
-.pokemon-card .pokemon-name {
-  font-weight: bold;
-  margin-bottom: 0.25rem;
+.excel-row:last-child {
+  border-bottom: none; /* No border for the last row */
 }
 
-.pokemon-card .pokemon-item {
+.excel-cell {
+  padding: 4px 8px; /* Cell padding */
+  border-right: 1px solid #e5e7eb; /* Vertical cell borders */
+  overflow: hidden; /* Prevent content overflow */
+  text-overflow: ellipsis; /* Add ellipsis for overflow */
+  white-space: nowrap; /* Keep content on one line */
+  font-size: 0.8rem; /* Slightly smaller font in cells */
+  line-height: 1.2; /* Adjust line height */
+  min-height: 28px; /* Ensure cell height consistency */
   display: flex;
   align-items: center;
 }
 
-.pokemon-card .pokemon-item img {
-  width: 16px;
-  height: 16px;
-  margin-right: 0.25rem;
-  margin-bottom: 0;
+.dark .excel-cell {
+  border-right-color: #4b5563;
 }
 
-.pokemon-card .pokemon-moves {
-  list-style-type: none;
-  padding-left: 0;
-  margin-top: 0.5rem;
+.excel-row .excel-cell:last-child {
+  border-right: none; /* No border for the last cell in a row */
 }
 
-.pokemon-card .pokemon-moves li {
-  margin-bottom: 0.25rem;
+/* Specific Cell Styling */
+.excel-cell.cell-sprite img {
+    display: block; /* Ensure image behaves like a block */
+    margin: auto; /* Center image */
+}
+.excel-cell.cell-item {
+    display: flex;
+    align-items: center;
+}
+.excel-cell.cell-tera {
+    text-align: center;
 }
 
-/* Team Container Layout */
-#team-container {
-  padding: 1rem;
-  max-width: 1200px;
-  margin: 0 auto;
+/* Header Row Styling */
+.header-row {
+  background-color: #f3f4f6; /* Slightly darker background for header */
+  font-weight: 600; /* Bold header text */
+  color: #374151; /* Darker text color */
+  border-bottom-width: 2px; /* Thicker bottom border for header */
+  border-color: #d1d5db;
+  position: sticky; /* Make header sticky */
+  top: 0; /* Stick to the top */
+  z-index: 10; /* Ensure header is above content */
+}
+.dark .header-row {
+  background-color: #374151; /* Darker header for dark mode */
+  color: #d1d5db;
+  border-color: #4b5563;
+}
+.dark .header-row .excel-cell {
+   border-right-color: #4b5563; /* Match header border */
 }
 
-/* Small Cards for Other Teams */
-.pokemon-card.small {
-  padding: 0.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  max-width: 240px;
+/* Alternating Row Colors */
+/* Applied via Tailwind classes in script.js: bg-white/bg-gray-50 and dark:bg-gray-800/dark:bg-gray-850 */
+.dark .bg-gray-850 { /* Custom utility for slightly darker rows */
+    background-color: #1f2937cc; /* Slightly darker than 800 */
 }
 
-.pokemon-card.small img {
-  width: 2rem;
-  height: 2rem;
+
+/* Formula Bar Style */
+#instruction {
+  font-family: monospace; /* Monospace font often used in formula bars */
+  font-size: 0.85rem;
 }
 
-.pokemon-card.small h4 {
-  font-size: 0.875rem;
-  margin-bottom: 0.5rem;
+/* Button Styles (Excel-like) */
+#search-btn, #copy-all-btn, #format-help-btn, #theme-toggle {
+  border: 1px solid #a0aec0; /* Standard button border */
+  border-radius: 2px; /* Less rounded corners */
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.05);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+#search-btn:hover, #copy-all-btn:hover {
+   filter: brightness(1.1);
+}
+#format-help-btn, #theme-toggle {
+   background-color: #f9fafb; /* Lighter background for utility buttons */
+}
+#format-help-btn:hover, #theme-toggle:hover {
+   background-color: #f3f4f6;
+   border-color: #9ca3af;
 }
 
-.pokemon-card.small h5 {
-  font-size: 0.75rem;
+.dark #search-btn, .dark #copy-all-btn, .dark #format-help-btn, .dark #theme-toggle {
+   border-color: #4b5563;
+   box-shadow: 0 1px 1px rgba(255,255,255,0.05);
+}
+.dark #format-help-btn, .dark #theme-toggle {
+   background-color: #374151;
+}
+.dark #format-help-btn:hover, .dark #theme-toggle:hover {
+   background-color: #4b5563;
+   border-color: #5a6679;
 }
 
-/* Spinner */
-.spinner {
-  width: 1.5rem;
-  height: 1.5rem;
-  border: 3px solid rgba(251, 191, 36, 0.3);
+/* Specific Excel Green Button */
+#search-btn, #copy-all-btn {
+    background-color: #107C41; /* Excel Green */
+    border-color: #0E6A38;
+    color: white;
+}
+#search-btn:hover, #copy-all-btn:hover {
+    background-color: #0E6A38;
+    border-color: #0B572F;
+     filter: none; /* Disable brightness filter for green buttons */
+}
+.dark #search-btn, .dark #copy-all-btn {
+     background-color: #16A34A; /* Lighter green for dark mode */
+     border-color: #107C41;
+}
+.dark #search-btn:hover, .dark #copy-all-btn:hover {
+     background-color: #107C41;
+     border-color: #0E6A38;
+}
+
+/* Spinner (Simple version) */
+.excel-spinner {
+  width: 0.8rem;
+  height: 0.8rem;
+  display: inline-block; /* Position correctly within button */
+  vertical-align: middle;
+}
+.excel-spinner div {
+  box-sizing: border-box;
+  display: block;
+  position: absolute;
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 2px solid #fff; /* White border for visibility on green */
   border-radius: 50%;
-  border-top-color: #fbbf24;
-  animation: spin 1s ease-in-out infinite;
+  animation: excel-spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  border-color: #fff transparent transparent transparent; /* Only top border visible */
 }
+.excel-spinner div:nth-child(1) { animation-delay: -0.45s; }
+.excel-spinner div:nth-child(2) { animation-delay: -0.3s; }
+.excel-spinner div:nth-child(3) { animation-delay: -0.15s; }
 
-.dark .spinner {
-  border-color: rgba(74, 85, 104, 0.3);
-  border-top-color: #4a5568;
-}
-
-@keyframes spin {
+@keyframes excel-spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
 
-/* Dark Mode Components */
-.dark input {
-  background-color: #2d3748;
-  border-color: #4a5568;
-  color: #e5e7eb;
+/* Copy Message Styling */
+#global-copy-message.excel-copy-message {
+  background-color: #E6F2ED; /* Light green background */
+  color: #0E6A38; /* Dark green text */
+  border: 1px solid #0E6A38;
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 3px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out; /* Smooth transition */
+  opacity: 0; /* Start hidden */
+  transform: translateX(-50%) translateY(-150%); /* Start off-screen */
 }
 
-.dark input::placeholder {
-  color: #a0aec0;
+.dark #global-copy-message.excel-copy-message {
+  background-color: #0B572F;
+  color: #D1FAE5;
+  border-color: #16A34A;
 }
 
-.dark button {
-  background-color: #4a5568;
-  color: #e5e7eb;
-}
+/* Style for when the copy message is shown (handled by JS) */
+/* Add transform/opacity changes directly in JS for simplicity */
 
-.dark button:hover {
-  background-color: #2d3748;
-}
 
-.dark a {
-  color: #63b3ed;
-}
-
-.dark a:hover {
-  color: #4299e1;
-}
-
-/* Copy Button */
-#copy-all-btn {
-  font-size: 0.875rem;
-  padding: 0.4rem 0.8rem;
-  border-radius: 0.375rem;
-  transition: all 0.2s ease;
-  border: none;
-  font-weight: 500;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  height: fit-content;
-  white-space: nowrap;
-}
-
-#copy-all-btn:hover {
-  background-color: #15803d;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-}
-
-.dark #copy-all-btn {
-  background-color: #4a5568;
-  /*color: #e5e7eb;*/
-}
-
-.dark #copy-all-btn:hover {
-  background-color: #2d3748;
-}
-
-/* Copy Message */
-#global-copy-message {
-  position: fixed;
-  top: 1rem;
-  left: 50%;
-  transform: translateX(-50%) translateY(-150%);
-  background-color: #fff7ed;
-  color: #1a1a1a;
-  padding: 0.75rem 1.5rem;
-  border-radius: 9999px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-  z-index: 50;
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  display: flex;
-  align-items: center;
-  max-width: 275px;
-  border: 2px solid #fbbf24;
-}
-
-.dark #global-copy-message {
-  background-color: rgba(45, 55, 72, 0.95);
-  color: white;
-  border-color: #4a5568;
-}
-
-#global-copy-message.show {
-  transform: translateX(-50%) translateY(0);
-}
-
-#global-copy-message span:first-child {
-  margin-right: 0.5rem;
-  font-size: 1.1em;
-  animation: checkmark 0.5s ease;
-  color: green;
-}
-
-@keyframes checkmark {
-  0% { opacity: 0; transform: scale(0.5); }
-  50% { opacity: 1; transform: scale(1.2); }
-  100% { transform: scale(1); }
-}
-
-/* Suggestion Styling */
-#did-you-mean {
-  transition: opacity 0.3s ease;
-  min-height: 1.5rem;
-}
-
-#suggestion-link {
-  transition: color 0.2s ease;
-  font-weight: 500;
-}
-
-#suggestion-link:hover {
-  color: #d97706;
-  text-decoration: underline;
-}
-
-.dark #suggestion-link {
-  color: #fbbf24;
-}
-
-.dark #suggestion-link:hover {
-  color: #f59e0b;
-}
-
-/* Text Colors for Dark Mode */
-.dark h1, .dark h2, .dark h3, .dark h4, .dark p, .dark li {
-  color: #e5e7eb;
-}
-
-/* Type Badges */
-.type-badge {
+/* Type Badges (Simplified Excel Style) */
+.type-badge-excel {
   display: inline-block;
-  padding: 0.1rem 0.3rem;
-  border-radius: 0.25rem;
-  font-size: 0.6rem;
-  font-weight: bold;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 0.6rem; /* Very small */
+  font-weight: 600;
+  line-height: 1;
   text-transform: uppercase;
   color: white;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+  text-shadow: none; /* Remove text shadow */
+  border: 1px solid rgba(0,0,0,0.1); /* Subtle border */
+  margin-right: 2px; /* Space before move name */
+  min-width: 25px; /* Ensure minimum width */
+  text-align: center;
 }
 
-.tera-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.1rem 0.3rem;
-  border-radius: 0.25rem;
-  font-size: 0.6rem;
+.tera-badge-excel {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.65rem;
   font-weight: bold;
   text-transform: uppercase;
   color: white;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-  position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  text-shadow: 0 1px 1px rgba(0,0,0,0.3);
   min-width: 40px;
-  z-index: 1;
+  text-align: center;
+  box-shadow: inset 0 0 3px rgba(255,255,255,0.3); /* Subtle inner glow */
 }
 
-.tera-badge::before {
-  content: "";
-  position: absolute;
-  top: -50%;
-  left: -60%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(
-      to bottom right,
-      rgba(255, 255, 255, 0) 45%,
-      rgba(255, 255, 255, 0.9) 50%,
-      rgba(255, 255, 255, 0) 55%
-  );
-  transform: rotate(30deg);
-  animation: tera-shine 2.5s infinite;
-  filter: blur(2px);
+
+/* Type Colors (Keep these as they are essential) */
+.type-normal, .dark .type-normal { background-color: #A8A878; }
+.type-fire, .dark .type-fire { background-color: #F08030; }
+.type-water, .dark .type-water { background-color: #6890F0; }
+.type-electric, .dark .type-electric { background-color: #F8D030; color: #333; text-shadow: none;} /* Darker text for light background */
+.type-grass, .dark .type-grass { background-color: #78C850; }
+.type-ice, .dark .type-ice { background-color: #98D8D8; color: #333; text-shadow: none;} /* Darker text */
+.type-fighting, .dark .type-fighting { background-color: #C03028; }
+.type-poison, .dark .type-poison { background-color: #A040A0; }
+.type-ground, .dark .type-ground { background-color: #E0C068; color: #333; text-shadow: none;} /* Darker text */
+.type-flying, .dark .type-flying { background-color: #A890F0; }
+.type-psychic, .dark .type-psychic { background-color: #F85888; }
+.type-bug, .dark .type-bug { background-color: #A8B820; }
+.type-rock, .dark .type-rock { background-color: #B8A038; }
+.type-ghost, .dark .type-ghost { background-color: #705898; }
+.type-dragon, .dark .type-dragon { background-color: #7038F8; }
+.type-dark, .dark .type-dark { background-color: #705848; }
+.type-steel, .dark .type-steel { background-color: #B8B8D0; color: #333; text-shadow: none;} /* Darker text */
+.type-fairy, .dark .type-fairy { background-color: #EE99AC; color: #333; text-shadow: none;} /* Darker text */
+.type-stellar, .dark .type-stellar {
+     background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+     color: white; text-shadow: 0 1px 1px rgba(0,0,0,0.5);
+}
+.type-unknown, .dark .type-unknown, .type-none, .dark .type-none { background-color: #68A090; }
+
+
+/* Other Teams Preview */
+.other-team-preview {
+    font-size: 0.75rem; /* Smaller font for previews */
+}
+.other-team-preview img {
+    width: 1.1rem; /* Smaller sprites */
+    height: 1.1rem;
 }
 
-.tera-badge::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(
-      circle at 20% 30%,
-      rgba(255, 255, 255, 0.8) 0%,
-      rgba(255, 255, 255, 0) 20%
-  ),
-  radial-gradient(
-      circle at 80% 70%,
-      rgba(255, 255, 255, 0.8) 0%,
-      rgba(255, 255, 255, 0) 20%
-  );
-  opacity: 0.7;
-  animation: sparkle 4s infinite alternate;
+/* Links */
+.excel-link {
+    text-decoration: underline;
+    color: #0057CC; /* Standard link blue */
+}
+.dark .excel-link {
+    color: #59AFFF; /* Lighter blue for dark mode */
+}
+.excel-link:hover {
+    color: #003380;
+}
+.dark .excel-link:hover {
+    color: #A9D7FF;
 }
 
-@keyframes tera-shine {
-  0% { transform: translateX(-100%) rotate(30deg); }
-  20% { transform: translateX(100%) rotate(30deg); }
-  100% { transform: translateX(100%) rotate(30deg); }
+/* Help Section Code Style */
+#format-help code {
+    font-size: 0.75rem;
+    padding: 1px 3px;
+    border: 1px solid #d1d5db;
+}
+.dark #format-help code {
+    border-color: #4b5563;
 }
 
-@keyframes sparkle {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 0.9; }
+/* Ensure placeholder has correct color */
+::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+  color: #9ca3af;
+  opacity: 1; /* Firefox */
+}
+:-ms-input-placeholder { /* Internet Explorer 10-11 */
+  color: #9ca3af;
+}
+::-ms-input-placeholder { /* Microsoft Edge */
+  color: #9ca3af;
+}
+.dark ::placeholder {
+  color: #6b7280;
+}
+.dark :-ms-input-placeholder {
+  color: #6b7280;
+}
+.dark ::-ms-input-placeholder {
+  color: #6b7280;
 }
 
-/* Type Colors */
-.type-normal { background-color: #A8A878; }
-.type-fire { background-color: #F08030; }
-.type-water { background-color: #6890F0; }
-.type-electric { background-color: #F8D030; }
-.type-grass { background-color: #78C850; }
-.type-ice { background-color: #98D8D8; }
-.type-fighting { background-color: #C03028; }
-.type-poison { background-color: #A040A0; }
-.type-ground { background-color: #E0C068; }
-.type-flying { background-color: #A890F0; }
-.type-psychic { background-color: #F85888; }
-.type-bug { background-color: #A8B820; }
-.type-rock { background-color: #B8A038; }
-.type-ghost { background-color: #705898; }
-.type-dragon { background-color: #7038F8; }
-.type-dark { background-color: #705848; }
-.type-steel { background-color: #B8B8D0; }
-.type-fairy { background-color: #EE99AC; }
-.type-unknown { background-color: #68A090; }
-
-/* Add this to your existing type-badge styles */
-.type-stellar {
-  background: linear-gradient(
-    45deg,
-    #ff0000 0%, 
-    #ff7f00 15%, 
-    #ffff00 30%, 
-    #00ff00 45%,
-    #0000ff 60%, 
-    #4b0082 75%, 
-    #9400d3 90%
-  );
-  color: white;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-  position: relative;
-  overflow: hidden;
-}
-
-.type-stellar::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(
-    circle at center,
-    rgba(255, 255, 255, 0.5) 0%,
-    rgba(255, 255, 255, 0.2) 50%,
-    transparent 100%
-  );
-  z-index: 1;
-}
-
-.type-stellar::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2;
+/* Add basic responsive handling if needed */
+@media (max-width: 768px) {
+    .excel-row {
+        /* Allow columns to wrap or introduce horizontal scroll */
+        /* Simple approach: Make it scrollable */
+        min-width: 800px; /* Force minimum width to encourage scrolling */
+    }
+     .excel-sheet {
+         overflow-x: auto; /* Enable horizontal scrolling for the sheet */
+     }
+     #team-header {
+          /* Ensure header scrolls with content */
+         position: relative; /* Or adjust sticky behaviour */
+     }
+     .header-row {
+          position: relative; /* Disable sticky header on small screens if problematic */
+     }
 }

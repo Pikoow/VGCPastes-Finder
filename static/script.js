@@ -1,159 +1,162 @@
-// Light/Dark Mode Toggle
+// --- Theme Toggle ---
 const themeToggle = document.getElementById("theme-toggle");
 const themeIcon = document.getElementById("theme-icon");
 
+// Function to apply theme based on mode
+function applyTheme(isDarkMode) {
+    if (isDarkMode) {
+        document.documentElement.classList.add("dark");
+        themeIcon.textContent = "☀️"; // Sun icon for dark mode
+        localStorage.theme = "dark";
+    } else {
+        document.documentElement.classList.remove("dark");
+        themeIcon.textContent = "🌙"; // Moon icon for light mode
+        localStorage.theme = "light";
+    }
+}
+
+// Event listener for theme toggle button
 themeToggle.addEventListener("click", () => {
-    document.documentElement.classList.toggle("dark");
-    const isDarkMode = document.documentElement.classList.contains("dark");
-    localStorage.theme = isDarkMode ? "dark" : "light";
-    themeIcon.textContent = isDarkMode ? "☀️" : "🌙";
+    const isDarkMode = !document.documentElement.classList.contains("dark");
+    applyTheme(isDarkMode);
 });
 
-// Format Help Toggle
+// Apply initial theme based on localStorage or system preference
+applyTheme(localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches));
+
+
+// --- Format Help Toggle ---
 const formatHelpBtn = document.getElementById("format-help-btn");
 const formatHelp = document.getElementById("format-help");
 
 formatHelpBtn.addEventListener("click", () => {
     formatHelp.classList.toggle("hidden");
-    formatHelp.classList.toggle("animate-fade-in");
+    // Optional: Add animation if desired
+    // formatHelp.classList.toggle("animate-fade-in");
 });
 
-const IGNORED_WORDS = new Set([
-    'a', 'an', 'the', 'and', 'with', 'holding', 'team', 'i', 'want', 
-    'need', 'looking', 'for', 'that', 'has', 'have', 'had', 'my',
-    'your', 'our', 'their', 'this', 'these', 'those', 'some', 'any',
-    'all', 'every', 'each', 'which', 'what', 'when', 'where', 'why',
-    'how', 'many', 'much', 'more', 'less', 'most', 'least', 'only',
-    'just', 'also', 'too', 'very', 'really', 'quite', 'somewhat',
-    'rather', 'about', 'around', 'over', 'under', 'above', 'below',
-    'between', 'among', 'through', 'during', 'before', 'after',
-    'while', 'since', 'until', 'from', 'to', 'into', 'onto', 'upon',
-    'of', 'in', 'out', 'on', 'off', 'up', 'down', 'at', 'by', 'for',
-    'via', 'per', 'as', 'like', 'unlike', 'such', 'so', 'thus',
-    'therefore', 'however', 'nevertheless', 'nonetheless', 'otherwise',
-    'then', 'than', 'though', 'although', 'even', 'if', 'unless',
-    'because', 'since', 'so', 'that', 'whether', 'while', 'once',
-    'twice', 'thrice', 'times', 'time', 'times', 'here', 'there',
-    'where', 'everywhere', 'nowhere', 'somewhere', 'anywhere', 'else',
-    'other', 'another', 'others', 'elsewhere', 'whatever', 'whoever',
-    'whichever', 'whenever', 'wherever', 'however', 'whyever', 'no',
-    'not', 'none', 'nothing', 'nobody', 'nowhere', 'never', 'neither',
-    'nor', 'either', 'or', 'both', 'whether', 'yes', 'yeah', 'yep',
-    'nope', 'nah', 'ok', 'okay', 'alright', 'sure', 'certainly',
-    'definitely', 'absolutely', 'probably', 'possibly', 'maybe',
-    'perhaps', 'usually', 'often', 'sometimes', 'rarely', 'seldom',
-    'never', 'always', 'frequently', 'generally', 'normally',
-    'typically', 'occasionally', 'constantly', 'continually',
-    'continuously', 'regularly', 'periodically', 'yearly', 'monthly',
-    'weekly', 'daily', 'hourly', 'annually', 'biannually', 'biennially',
-    'triennially', 'quarterly', 'semiannually', 'midyear', 'midsummer',
-    'midwinter', 'midspring', 'midautumn', 'midfall', 'midseason',
-    'midterm', 'midpoint', 'midway', 'midnight', 'midday', 'noon',
-    'midmorning', 'midafternoon', 'midweek', 'midmonth', 'midyear',
-    'midevening', 'midnight', 'midday', 'noon', 'midmorning',
-    'midafternoon', 'midweek', 'midmonth', 'midyear', 'midevening'
-]);
 
-function findClosestPokemonName(input) {
-    if (!input.trim()) return null;
-    
-    const inputLower = input.toLowerCase();
-    
-    // Skip ignored words
-    if (IGNORED_WORDS.has(inputLower)) return null;
-    
-    // Skip words that are too short or too long to be Pokémon names
-    if (inputLower.length < 4 || inputLower.length > 20) return null;
-    
-    const pokemonNames = [...window.pokemonNames];
-    
-    // Exact match check
-    if (pokemonNames.includes(inputLower)) return null;
-    
-    // Find similar names using Levenshtein distance
-    let closest = null;
-    let minDistance = Infinity;
-    
-    for (const name of pokemonNames) {
-        // Skip if the lengths are too different
-        if (Math.abs(name.length - inputLower.length) > 3) continue;
-        
-        // Skip if the beginning matches exactly (user is probably typing)
-        if (name.startsWith(inputLower) && inputLower.length < 4) return null;
-        
-        // Simple similarity check (partial match)
-        if (name.includes(inputLower) || inputLower.includes(name)) {
-            return name; // Return first partial match
-        }
-        
-        // More advanced distance calculation
-        const distance = levenshteinDistance(inputLower, name);
-        if (distance < minDistance && distance <= 3) { // Only suggest if very close (max 2 changes)
-            minDistance = distance;
-            closest = name;
-        }
-    }
-    
-    return closest;
-}
+// --- "Did You Mean" Suggestion Logic ---
+
+// Words to ignore for suggestions (common words, fillers)
+const IGNORED_WORDS = new Set([
+    'a', 'an', 'the', 'and', 'with', 'holding', 'team', 'i', 'want', 'like',
+    'need', 'looking', 'for', 'that', 'has', 'have', 'had', 'my', 'can', 'give', 'me',
+    'your', 'our', 'their', 'this', 'these', 'those', 'some', 'any', 'about',
+    'all', 'every', 'each', 'which', 'what', 'when', 'where', 'why', 'find',
+    'how', 'many', 'much', 'more', 'less', 'most', 'least', 'only', 'show',
+    'just', 'also', 'too', 'very', 'really', 'quite', 'somewhat', 'tera',
+    'rather', 'type', 'types', 'move', 'moves', 'ability', 'abilities', 'item', 'items',
+    'of', 'in', 'out', 'on', 'off', 'up', 'down', 'at', 'by', 'via', 'per',
+    'as', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'it', 'its',
+    'no', 'not', 'nor', 'or', 'but', 'so', 'if', 'then', 'than'
+]);
 
 // Levenshtein distance function for string similarity
 function levenshteinDistance(a, b) {
-    const matrix = [];
-    for (let i = 0; i <= b.length; i++) {
-        matrix[i] = [i];
-    }
-    for (let j = 0; j <= a.length; j++) {
-        matrix[0][j] = j;
-    }
-    for (let i = 1; i <= b.length; i++) {
-        for (let j = 1; j <= a.length; j++) {
-            if (b.charAt(i - 1) === a.charAt(j - 1)) {
-                matrix[i][j] = matrix[i - 1][j - 1];
-            } else {
-                matrix[i][j] = Math.min(
-                    matrix[i - 1][j - 1] + 1,
-                    matrix[i][j - 1] + 1,
-                    matrix[i - 1][j] + 1
-                );
-            }
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+
+    const matrix = Array(a.length + 1).fill(null).map(() =>
+        Array(b.length + 1).fill(null)
+    );
+
+    for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+    for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+
+    for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            matrix[i][j] = Math.min(
+                matrix[i - 1][j] + 1,      // Deletion
+                matrix[i][j - 1] + 1,      // Insertion
+                matrix[i - 1][j - 1] + cost // Substitution
+            );
         }
     }
-    return matrix[b.length][a.length];
+    return matrix[a.length][b.length];
 }
 
-document.getElementById("instruction").addEventListener("input", function() {
-    const input = this.value;
-    const didYouMeanDiv = document.getElementById("did-you-mean");
-    const suggestionLink = document.getElementById("suggestion-link");
-    
-    // Split input into words and check each one
-    const words = input.split(/\s+/);
-    let suggestion = null;
-    
-    for (const word of words) {
-        // Skip words that are obviously not Pokémon names
-        if (word.length < 4 || word.length > 20) continue;
-        if (IGNORED_WORDS.has(word.toLowerCase())) continue;
-        
-        const closest = findClosestPokemonName(word);
-        if (closest) {
-            // Create the suggestion by replacing just this word
-            suggestion = input.replace(
-                new RegExp(`\\b${word}\\b`, 'i'), 
-                closest.charAt(0).toUpperCase() + closest.slice(1) // Capitalize first letter
-            );
-            break;
+
+// Function to find the closest Pokémon name match for a given input word
+function findClosestPokemonName(inputWord) {
+    const inputLower = inputWord.toLowerCase();
+
+    // Basic checks: ignore empty, short, long, or common words
+    if (!inputLower || inputLower.length < 3 || inputLower.length > 20 || IGNORED_WORDS.has(inputLower)) {
+        return null;
+    }
+
+    // Ensure pokemonNames list is available
+    if (!window.pokemonNames || window.pokemonNames.size === 0) {
+        console.warn("Pokémon names list not available for suggestions.");
+        return null;
+    }
+
+    const pokemonNamesArray = [...window.pokemonNames];
+
+    // Exact match check (case-insensitive) - if exact match, no suggestion needed
+    if (pokemonNamesArray.includes(inputLower)) {
+        return null;
+    }
+
+    let closestMatch = null;
+    let minDistance = 3; // Maximum allowed distance for a suggestion (adjust as needed)
+
+    for (const name of pokemonNamesArray) {
+        // Optimization: skip if lengths differ too much
+        if (Math.abs(name.length - inputLower.length) > minDistance) {
+            continue;
+        }
+
+        const distance = levenshteinDistance(inputLower, name);
+
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestMatch = name;
+        } else if (distance === minDistance) {
+            // Prefer shorter names if distances are equal? Or keep first found?
+            // Keeping the first found for simplicity.
         }
     }
-    
-    if (suggestion) {
+
+    // Return the *original case* version of the closest match
+    if (closestMatch) {
+        // Find the original casing from the data if possible (more reliable)
+        const originalCaseName = data.flatMap(t => t.pokemons).find(p => p.name.toLowerCase() === closestMatch)?.name || closestMatch;
+        return originalCaseName;
+    }
+
+    return null;
+}
+
+// Event listener for the instruction input field to trigger suggestions
+document.getElementById("instruction").addEventListener("input", function() {
+    const inputText = this.value;
+    const didYouMeanDiv = document.getElementById("did-you-mean");
+    const suggestionLink = document.getElementById("suggestion-link");
+
+    // Simple approach: check the last word typed
+    const words = inputText.trim().split(/\s+/);
+    const lastWord = words[words.length - 1];
+
+    let suggestion = null;
+    let suggestedPokemon = findClosestPokemonName(lastWord);
+
+    if (suggestedPokemon) {
+        // Construct the suggested text by replacing the last word
+        words[words.length - 1] = suggestedPokemon;
+        suggestion = words.join(" ");
+    }
+
+    // Show or hide the suggestion link
+    if (suggestion && suggestion.toLowerCase() !== inputText.trim().toLowerCase()) {
         suggestionLink.textContent = `"${suggestion}"`;
         suggestionLink.onclick = (e) => {
             e.preventDefault();
             document.getElementById("instruction").value = suggestion;
-            document.getElementById("search-btn").click();
-            didYouMeanDiv.classList.add("hidden");
+            didYouMeanDiv.classList.add("hidden"); // Hide after clicking
+            triggerSearch(); // Optionally trigger search immediately
         };
         didYouMeanDiv.classList.remove("hidden");
     } else {
@@ -161,174 +164,287 @@ document.getElementById("instruction").addEventListener("input", function() {
     }
 });
 
-document.getElementById("search-btn").addEventListener("click", async () => {
-    const instruction = document.getElementById("instruction").value;
-    if (!instruction) return;
 
-    // Clear previous team and copy button
-    const teamContainer = document.getElementById("team-container");
-    teamContainer.innerHTML = ""; // Clear the container
+// --- Search Functionality ---
+const searchBtn = document.getElementById("search-btn");
+const instructionInput = document.getElementById("instruction");
+const teamContainer = document.getElementById("team-container");
+const teamHeader = document.getElementById("team-header");
+const teamTitle = document.getElementById("team-title");
+const copyAllBtn = document.getElementById("copy-all-btn");
+const otherTeamsContainer = document.getElementById("other-teams-container");
+const otherTeamsTitle = document.getElementById("other-teams-title");
+const otherTeamsList = document.getElementById("other-teams-list");
+const searchText = document.getElementById("search-text");
+const loadingSpinner = document.getElementById("loading-spinner");
 
-    // Show loading spinner
-    const searchText = document.getElementById("search-text");
-    const loadingSpinner = document.getElementById("loading-spinner");
-    searchText.textContent = "Searching...";
+// Function to trigger the search process
+async function triggerSearch() {
+    const instruction = instructionInput.value.trim();
+    if (!instruction) return; // Don't search if input is empty
+
+    // --- UI Updates: Start Loading ---
+    searchText.textContent = "Searching";
     loadingSpinner.classList.remove("hidden");
+    searchBtn.disabled = true; // Disable button during search
+    teamContainer.innerHTML = ''; // Clear previous results
+    teamTitle.textContent = 'Loading Team...';
+    copyAllBtn.classList.add('hidden');
+    otherTeamsTitle.classList.add('hidden');
+    otherTeamsList.innerHTML = '';
+    document.getElementById("did-you-mean").classList.add("hidden"); // Hide suggestion
 
-    // Clear any existing title
-    const existingTitle = document.querySelector(".team-title");
-    if (existingTitle) {
-        existingTitle.remove();
-    }
-
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Simulate network delay/processing time (optional)
+    // await new Promise(resolve => setTimeout(resolve, 300));
 
     try {
-        // Generate the team directly in the browser
-        const [teams, noDetect] = generatePokepaste(instruction);
+        // Call the generation function from generate.js
+        const [teams, noDetect] = window.generatePokepaste(instruction);
 
-        // Shuffle the teams array to randomize the selection
-        const shuffledTeams = shuffleArray(teams);
+        if (noDetect && (!teams || teams.length === 0)) {
+             // Handle case where generatePokepaste returns truly empty
+            teamTitle.textContent = 'No Results';
+            teamContainer.innerHTML = `<div class="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">No teams found matching your query. Try different keywords.</div>`;
+            otherTeamsContainer.classList.add('hidden'); // Hide other teams section
 
-        // Limit the number of teams to 7
-        let teamsToDisplay = shuffledTeams.slice(0, 7);
+        } else if (teams && teams.length > 0) {
+            // We have at least one team (either matched or random)
+            const mainTeam = teams[0];
 
-        // Display the first team as the main team
-        const mainTeam = teamsToDisplay[0];
-        
-        // Create a container for the title and button
-        const titleContainer = document.createElement("div");
-        titleContainer.className = "flex justify-center items-center mb-8 col-span-full relative";
-        
-        // Create a wrapper div for the title and button
-        const titleWrapper = document.createElement("div");
-        titleWrapper.className = "flex items-center gap-4";
-        
-        // Add the title
-        const title = document.createElement("h2");
-        title.className = "team-title text-3xl font-bold text-gray-800 dark:text-gray-100 font-serif";
-        title.textContent = mainTeam.filename.split('.')[0];
-        
-        // Add the copy button
-        const copyButton = document.createElement("button");
-        copyButton.id = "copy-all-btn";
-        copyButton.className = "bg-amber-500 p-2 rounded-r-lg hover:bg-amber-600 flex items-center text-black border border-amber-300 transition-colors";
-        copyButton.textContent = "Copy Poképaste";
-        
-        // Append elements
-        titleWrapper.appendChild(title);
-        titleWrapper.appendChild(copyButton);
-        titleContainer.appendChild(titleWrapper);
-        
-        // Insert before the team container
-        teamContainer.insertAdjacentElement("beforebegin", titleContainer);
+             // Update main team title and display
+            teamTitle.textContent = mainTeam.filename.split('.')[0].replace(/_/g, ' '); // Clean up filename
+            displayTeam(mainTeam, teamContainer); // Display the main team using the new function
+            copyAllBtn.classList.remove('hidden'); // Show copy button
 
-        // Display the main team
-        displayTeam(mainTeam, teamContainer);
+            // Setup copy button functionality
+            copyAllBtn.onclick = () => copyTeamToClipboard(mainTeam);
 
-        if (noDetect) {
-            teamsToDisplay = {};
+            // Handle "other" teams (if more than one team was returned)
+            if (teams.length > 1) {
+                otherTeamsContainer.classList.remove('hidden');
+                 otherTeamsTitle.textContent = `${teams.length - 1} other potential match${teams.length > 2 ? 'es' : ''}:`;
+                 otherTeamsTitle.classList.remove('hidden');
+                displayOtherTeams(teams.slice(1), otherTeamsList); // Display previews
+            } else {
+                 otherTeamsContainer.classList.add('hidden'); // Hide if only one team
+            }
 
-            const otherTeamsNumberTitle = `<h3 class="text-xl font-bold text-center col-span-full text-gray-800 dark:text-gray-100">We couldn't find teams matching your search, so here's a random team!</h3>`;
-            teamContainer.insertAdjacentHTML("beforeend", otherTeamsNumberTitle);
+             if (noDetect) {
+                 // If noDetect is true, it means the main team is random
+                 otherTeamsContainer.classList.remove('hidden');
+                 otherTeamsTitle.textContent = `No exact matches found. Showing a random team:`;
+                 otherTeamsTitle.classList.remove('hidden');
+                 otherTeamsList.innerHTML = ''; // No "other" teams in this case
+             }
+
+        } else {
+             // Should not happen if generatePokepaste guarantees an array, but handle defensively
+            teamTitle.textContent = 'Error';
+             teamContainer.innerHTML = `<div class="p-4 text-center text-red-500 dark:text-red-400 text-sm">An unexpected error occurred. Please try again.</div>`;
+             otherTeamsContainer.classList.add('hidden');
         }
 
-        // Display other teams as smaller cards below the main team
-        if (teamsToDisplay.length > 1) {
-            const otherTeamsNumberTitle = `<h3 class="text-xl font-bold text-center col-span-full text-gray-800 dark:text-gray-100">${shuffledTeams.length - 1} other teams match that query</h3>`;
-            teamContainer.insertAdjacentHTML("beforeend", otherTeamsNumberTitle);
-
-            teamsToDisplay.slice(1).forEach(team => {
-                const teamCard = document.createElement("div");
-                teamCard.className = "pokemon-card p-2 rounded-lg shadow-md relative bg-amber-100 dark:bg-gray-700";
-                teamCard.innerHTML = `
-                    <h4 class="text-sm font-bold text-center mb-2 text-gray-800 dark:text-gray-100">${team.filename.split('.')[0]}</h4>
-                    <div class="flex justify-center gap-1">
-                        ${team.pokemons.map(pokemon => `
-                            <div class="flex flex-col items-center">
-                                <img src="${pokemon.sprite}" alt="${pokemon.name}" class="w-8 h-8">
-                            </div>
-                        `).join("")}
-                    </div>
-                `;
-                teamContainer.appendChild(teamCard);
-            });
-        }
-
-        // Add event listener for the copy button
-        document.getElementById("copy-all-btn").addEventListener("click", () => {
-            const teamText = mainTeam.pokemons.map(pokemon => {
-                return `${pokemon.name} @ ${pokemon.item || "No Item"}\nAbility: ${pokemon.ability || "Unknown"}\nTera Type: ${pokemon.tera_type}\n- ${pokemon.moves.join("\n- ")}`;
-            }).join("\n\n");
-            
-            navigator.clipboard.writeText(teamText).then(() => {
-                const message = document.getElementById("global-copy-message");
-                message.classList.remove("hidden");
-                message.classList.add("show");
-                
-                setTimeout(() => {
-                    message.classList.remove("show");
-                    setTimeout(() => message.classList.add("hidden"), 300);
-                }, 2000);
-            });
-        });
     } catch (error) {
-        teamContainer.innerHTML = `<div class="text-red-500 text-center nerdy-font">Sorry, something went wrong. Please try again.</div>`;
-        console.log(error);
+        console.error("Error during search:", error);
+        teamTitle.textContent = 'Error';
+        teamContainer.innerHTML = `<div class="p-4 text-center text-red-500 dark:text-red-400 text-sm">Sorry, something went wrong during the search. Error: ${error.message}</div>`;
+        copyAllBtn.classList.add('hidden');
+         otherTeamsContainer.classList.add('hidden');
     } finally {
-        // Hide loading spinner
+        // --- UI Updates: End Loading ---
         searchText.textContent = "Search";
         loadingSpinner.classList.add("hidden");
+        searchBtn.disabled = false; // Re-enable button
+    }
+}
+
+// Event listener for the search button
+searchBtn.addEventListener("click", triggerSearch);
+
+// Allow searching by pressing Enter in the input field
+instructionInput.addEventListener("keypress", function(event) {
+    if (event.key === "Enter") {
+        event.preventDefault(); // Prevent default form submission
+        triggerSearch();
     }
 });
 
-// Helper function to shuffle an array
+
+// --- Display Functions ---
+
+// Function to display the main team in a table/grid format
+function displayTeam(team, container) {
+    container.innerHTML = ''; // Clear previous content
+
+    // 1. Create Header Row
+    const headerRow = document.createElement('div');
+    headerRow.className = 'excel-row header-row sticky top-0 bg-gray-200 dark:bg-gray-700 z-10'; // Sticky header
+    headerRow.innerHTML = `
+        <div class="excel-cell font-semibold">Sprite</div>
+        <div class="excel-cell font-semibold">Pokémon</div>
+        <div class="excel-cell font-semibold">Item</div>
+        <div class="excel-cell font-semibold">Ability</div>
+        <div class="excel-cell font-semibold">Tera Type</div>
+        <div class="excel-cell font-semibold">Move 1</div>
+        <div class="excel-cell font-semibold">Move 2</div>
+        <div class="excel-cell font-semibold">Move 3</div>
+        <div class="excel-cell font-semibold">Move 4</div>
+    `;
+    container.appendChild(headerRow);
+
+    // 2. Create Data Rows for each Pokémon
+    team.pokemons.forEach((pokemon, index) => {
+        const row = document.createElement('div');
+        // Add alternating row colors
+        row.className = `excel-row ${index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-850'}`;
+
+        const itemSpriteUrl = pokemon.item && pokemon.item !== "None"
+            ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${pokemon.item.toLowerCase().replace(/ /g, '-')}.png`
+            : 'static/assets/no_item.png'; // Path to a placeholder "no item" image
+
+        const teraType = pokemon.tera_type || "None";
+        const teraClass = teraType !== "None" ? `type-${teraType.toLowerCase()}` : 'type-none';
+
+        // Ensure moves array has 4 elements (pad with placeholders if necessary)
+        const moves = [...pokemon.moves];
+        while (moves.length < 4) {
+            moves.push({ name: '-', type: 'unknown' });
+        }
+
+        row.innerHTML = `
+            <div class="excel-cell cell-sprite">
+                <img src="${pokemon.sprite || 'static/assets/pokeball_icon.png'}" alt="${pokemon.name}" class="w-8 h-8 mx-auto" onerror="this.onerror=null; this.src='static/assets/pokeball_icon.png';">
+            </div>
+            <div class="excel-cell font-medium">${pokemon.name}</div>
+            <div class="excel-cell cell-item">
+                ${pokemon.item !== "None" ? `
+                    <img src="${itemSpriteUrl}" alt="${pokemon.item}" class="w-4 h-4 mr-1 inline-block" onerror="this.style.display='none'; this.nextSibling.style.display='inline';" title="${pokemon.item}">
+                    <span style="display:none;">${pokemon.item}</span> <!-- Fallback text if image fails -->
+                 ` : `
+                     <span class="text-gray-400 dark:text-gray-500 italic text-xs">None</span>
+                 `}
+            </div>
+            <div class="excel-cell text-xs">${pokemon.ability}</div>
+             <div class="excel-cell cell-tera">
+                ${teraType !== "None" ? `<span class="tera-badge-excel ${teraClass}">${teraType}</span>` : `<span class="text-gray-400 dark:text-gray-500 italic text-xs">None</span>`}
+            </div>
+            ${moves.map(move => `
+                <div class="excel-cell cell-move text-xs">
+                    ${move.name !== '-' ? `
+                        <span class="type-badge-excel type-${move.type?.toLowerCase() || 'unknown'} mr-1">${move.type?.toUpperCase() || '?'}</span>
+                        ${move.name}
+                    ` : `
+                        <span class="text-gray-400 dark:text-gray-500">-</span>
+                    `}
+                </div>
+            `).join("")}
+        `;
+        container.appendChild(row);
+    });
+}
+
+// Function to display previews of other matching teams
+function displayOtherTeams(teams, listContainer) {
+    listContainer.innerHTML = ''; // Clear previous list
+    teams.forEach(team => {
+        const teamPreview = document.createElement('div');
+        teamPreview.className = 'other-team-preview border border-gray-300 dark:border-gray-600 p-1.5 rounded-sm bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors';
+        teamPreview.title = `Click to view team: ${team.filename.split('.')[0].replace(/_/g, ' ')}\nScore: ${team.score}`; // Tooltip
+
+        const teamName = document.createElement('div');
+        teamName.className = 'text-xs font-semibold truncate mb-1 text-gray-700 dark:text-gray-200';
+        teamName.textContent = team.filename.split('.')[0].replace(/_/g, ' ');
+        teamPreview.appendChild(teamName);
+
+        const spriteContainer = document.createElement('div');
+        spriteContainer.className = 'flex flex-wrap gap-1 justify-center';
+        team.pokemons.slice(0, 6).forEach(pokemon => { // Show max 6 sprites
+            const img = document.createElement('img');
+            img.src = pokemon.sprite || 'static/assets/pokeball_icon.png';
+            img.alt = pokemon.name;
+            img.className = 'w-5 h-5';
+             img.onerror = () => { img.src = 'static/assets/pokeball_icon.png'; }; // Fallback sprite
+            spriteContainer.appendChild(img);
+        });
+        teamPreview.appendChild(spriteContainer);
+
+        // Add click listener to load this team as the main one
+        teamPreview.addEventListener('click', () => {
+             // Find the full team data (assuming 'teams' includes the main team already filtered out)
+             // We might need to fetch the full data again or pass it differently if not available here.
+             // For simplicity, let's re-run the search focused on this team's name if possible,
+             // or just display the preview data in the main area.
+             // Let's just display this team in the main view for now.
+            teamTitle.textContent = team.filename.split('.')[0].replace(/_/g, ' ');
+            displayTeam(team, teamContainer);
+            copyAllBtn.classList.remove('hidden');
+            copyAllBtn.onclick = () => copyTeamToClipboard(team);
+             // Optionally scroll to top
+             window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        listContainer.appendChild(teamPreview);
+    });
+}
+
+
+// --- Utility Functions ---
+
+// Function to copy the main team's Poképaste format to clipboard
+function copyTeamToClipboard(team) {
+    if (!team || !team.pokemons) return;
+
+    const teamText = team.pokemons.map(pokemon => {
+         const name = pokemon.name || "Unknown";
+         const item = pokemon.item && pokemon.item !== "None" ? pokemon.item : "";
+         const ability = pokemon.ability || "Unknown";
+         const tera = pokemon.tera_type && pokemon.tera_type !== "None" ? `Tera Type: ${pokemon.tera_type}` : "";
+         // Format moves, ensuring they exist and handling missing ones gracefully
+         const moves = (pokemon.moves || [])
+             .map(m => m && m.name && m.name !== '-' ? `- ${m.name}` : null) // Get only valid move names
+             .filter(m => m !== null) // Remove null entries
+             .join("\n");
+
+        // Construct the string for one Pokémon
+        let pokemonString = `${name}${item ? ` @ ${item}` : ''}\n`;
+        pokemonString += `Ability: ${ability}\n`;
+        if (tera) pokemonString += `${tera}\n`;
+        // Add EVs/IVs/Nature placeholder if you have that data eventually
+        // pokemonString += `EVs: ... \n`;
+        // pokemonString += `IVs: ... \n`;
+        // pokemonString += `Nature ... \n`;
+        if (moves) pokemonString += `${moves}`; // Add moves if they exist
+
+        return pokemonString.trim(); // Trim whitespace from each Pokémon block
+    }).join("\n\n"); // Join Pokémon blocks with double newline
+
+    navigator.clipboard.writeText(teamText).then(() => {
+        // Show confirmation message
+        const message = document.getElementById("global-copy-message");
+        message.classList.remove("hidden");
+        // Add class to trigger animation/transition (if defined in CSS)
+        message.style.transform = 'translateX(-50%) translateY(0)';
+        message.style.opacity = '1';
+
+        // Hide the message after a delay
+        setTimeout(() => {
+             message.style.transform = 'translateX(-50%) translateY(-150%)';
+             message.style.opacity = '0';
+             // Optionally use transitionend event for smoother hiding if using CSS transitions
+             setTimeout(() => message.classList.add("hidden"), 300); // Hide after transition
+        }, 2000); // Display duration: 2 seconds
+
+    }).catch(err => {
+        console.error('Failed to copy team:', err);
+        alert("Failed to copy team to clipboard."); // Simple fallback alert
+    });
+}
+
+// Helper function to shuffle an array (used previously, might be useful again)
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
-}
-
-function displayTeam(team, container) {
-    team.pokemons.forEach(pokemon => {
-        const itemSpriteUrl = pokemon.item ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${pokemon.item.toLowerCase().replace(/ /g, '-')}.png` : null;
-        const teraType = pokemon.tera_type || "Unknown";
-
-        const pokemonCard = `
-            <div class="pokemon-card">
-                <div class="card-content">
-                    <div class="pokemon-image">
-                        <img src="${pokemon.sprite}" alt="${pokemon.name}" class="w-16 h-16" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png';">
-                        <h3 class="pokemon-name text-sm text-center">${pokemon.name}</h3>
-                        <div class="pokemon-item">
-                            ${pokemon.item ? `
-                                <img src="${itemSpriteUrl}" alt="${pokemon.item}" class="item-image w-4 h-4" onerror="this.onerror=null; this.style.display='none';">
-                                <p class="text-xs text-gray-600 dark:text-gray-400">${pokemon.item}</p>
-                            ` : '<p class="text-xs text-gray-600 dark:text-gray-400">No Item</p>'}
-                        </div>
-                    </div>
-                    <div class="pokemon-info">
-                        <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                            <span class="font-semibold ability-badge">Ability</span> ${pokemon.ability || "Unknown"}
-                        </p>
-                        <p class="text-xs text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1">
-                            <span class="tera-badge type-${teraType.toLowerCase()}">${teraType}</span>
-                            <span>Tera Type</span>
-                        </p>
-                        <ul class="pokemon-moves text-xs text-gray-500 dark:text-gray-300">
-                            ${pokemon.moves.map(move => `
-                                <li class="flex items-center">
-                                    <span class="type-badge type-${move.type.toLowerCase()} mr-1">${move.type}</span>
-                                    ${move.name}
-                                </li>
-                            `).join("")}
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        `;
-        container.innerHTML += pokemonCard;
-    });
 }
