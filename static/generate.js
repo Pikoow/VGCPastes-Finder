@@ -58,17 +58,17 @@ const DataService = {
         if (this.isInitialized) return;
         if (this.dataLoadedPromise) return this.dataLoadedPromise; // Prevent redundant initializations
 
-        console.log("Initializing DataService...");
+        /*console.log("Initializing DataService...");*/
         this.dataLoadedPromise = this._loadAllData();
         try {
             await this.dataLoadedPromise;
             this.isInitialized = true;
-            console.log("DataService Initialized.");
+            /*console.log("DataService Initialized.");*/
             // Log counts for verification
-            console.log(`Loaded ${this.pokemonIndex.size} unique Pokémon.`);
+            /*console.log(`Loaded ${this.pokemonIndex.size} unique Pokémon.`);
             console.log(`Loaded ${this.allAbilities.size} unique abilities.`);
             console.log(`Loaded ${this.allMoves.size} unique moves.`);
-            console.log(`Loaded ${this.allItems.size} unique items.`);
+            console.log(`Loaded ${this.allItems.size} unique items.`);*/
         } catch (error) {
             console.error("DataService initialization failed:", error);
             // Prevent partial initialization state
@@ -293,11 +293,6 @@ const InstructionParser = {
                          parsed.types.push(entity.value);
                      }
                      break;
-                 case 'archetype':
-                     if (!parsed.archetype_hints.includes(entity.key)) {
-                        parsed.archetype_hints.push(entity.key); // Store the archetype key ('rain', 'sun')
-                     }
-                     break;
                  case 'negation': // Handle "without X"
                      parsed.negations.push(entity.value); // value = { type: 'pokemon'|'item'|..., value: string }
                      break;
@@ -334,7 +329,6 @@ const InstructionParser = {
             roles: [], // General roles requested (e.g., "attacker", "wall")
             size_requests: [], // { type: 'small' | 'tall', count: number }
             weight_requests: [], // { type: 'light' | 'heavy', count: number }
-            archetype_hints: [], // List of archetype keys like 'rain', 'trick room'
             negations: [], // { type: 'pokemon' | 'item' | ..., value: string (lower) } - Things NOT wanted
         };
     },
@@ -590,14 +584,44 @@ const InstructionParser = {
 // --- Team Matcher ---
 const TeamMatcher = {
 
+    // Returns { score: number, metCriteria: object }
     calculateMatchScore(parsedInstruction, team) {
+        let score = 0;
+        // Initialize metCriteria structure matching parsedInstruction for easy tracking
+        const metCriteria = {
+            pokemon: new Set(),
+            pokemon_with_items: new Set(),
+            pokemon_with_tera: new Set(),
+            pokemon_with_abilities: new Set(),
+            pokemon_with_moves: new Set(),
+            items: new Set(),
+            moves: new Set(),
+            abilities: new Set(),
+            tera_types: new Set(),
+            types_with_roles: new Set(),
+            types: new Set(),
+            roles: new Set(),
+            size_requests: new Set(),
+            weight_requests: new Set(),
+            // Negations are not tracked here as "met"
+        };
+
         if (!parsedInstruction || !team || !team.pokemons) {
-            return 0;
+            return { score: 0, metCriteria };
         }
 
-        let score = 0;
         const teamPokemonNames = team.pokemons.map(p => p?.name).filter(Boolean);
         const teamPokemonNamesLower = teamPokemonNames.map(name => name.toLowerCase());
+
+        // Helper to add to metCriteria sets safely
+        const addCriterionMet = (category, value) => {
+            if (metCriteria[category]) {
+                 // Use JSON stringify for complex objects to ensure uniqueness in Set
+                 const key = typeof value === 'object' ? JSON.stringify(value) : value;
+                 metCriteria[category].add(key);
+            }
+        };
+
 
         // --- Check Negations First (Heavy Penalty) ---
          for (const negation of parsedInstruction.negations) {
@@ -622,13 +646,10 @@ const TeamMatcher = {
              }
              if (violated) {
                  score += SCORE_WEIGHTS.NEGATIVE_CONSTRAINT_PENALTY;
-                 // Potentially return early if a strong negation is violated?
-                 // return score; // Or just apply penalty and continue matching other things
+                 // If a negation is violated, this team is not a match, return immediately.
+                 // We don't need to report met positive criteria if a negative one fails.
+                 return { score, metCriteria: {} }; // Return empty metCriteria
              }
-         }
-         // Prevent further positive scoring if a strong negation makes the team invalid
-         if (score <= SCORE_WEIGHTS.NEGATIVE_CONSTRAINT_PENALTY) {
-             // return score; // Optionally stop here
          }
 
 
@@ -638,76 +659,84 @@ const TeamMatcher = {
         parsedInstruction.pokemon.forEach(requestedPokemonName => {
             if (teamPokemonNames.includes(requestedPokemonName)) { // Match original case
                 score += SCORE_WEIGHTS.EXACT_POKEMON;
+                addCriterionMet('pokemon', requestedPokemonName);
             }
-            // Optional: Add partial score for base form if evolution/variant requested? (e.g., request Urshifu, match Urshifu-Rapid-Strike)
         });
 
         // 2. Pokémon with Specifics (Item, Tera, Ability, Move)
-        parsedInstruction.pokemon_with_items.forEach(({ pokemon, item }) => {
-            if (team.pokemons.some(p => p?.name === pokemon && p?.item?.toLowerCase() === item)) {
+        parsedInstruction.pokemon_with_items.forEach(req => { // req = { pokemon, item }
+            if (team.pokemons.some(p => p?.name === req.pokemon && p?.item?.toLowerCase() === req.item)) {
                 score += SCORE_WEIGHTS.POKEMON_WITH_ITEM;
+                addCriterionMet('pokemon_with_items', req);
             }
         });
-        parsedInstruction.pokemon_with_tera.forEach(({ pokemon, tera_type }) => {
-            if (team.pokemons.some(p => p?.name === pokemon && p?.tera_type?.toLowerCase() === tera_type)) {
+        parsedInstruction.pokemon_with_tera.forEach(req => { // req = { pokemon, tera_type }
+            if (team.pokemons.some(p => p?.name === req.pokemon && p?.tera_type?.toLowerCase() === req.tera_type)) {
                 score += SCORE_WEIGHTS.POKEMON_WITH_TERA;
+                 addCriterionMet('pokemon_with_tera', req);
             }
         });
-        parsedInstruction.pokemon_with_abilities.forEach(({ pokemon, ability }) => {
-            if (team.pokemons.some(p => p?.name === pokemon && p?.ability?.toLowerCase() === ability)) {
+        parsedInstruction.pokemon_with_abilities.forEach(req => { // req = { pokemon, ability }
+            if (team.pokemons.some(p => p?.name === req.pokemon && p?.ability?.toLowerCase() === req.ability)) {
                 score += SCORE_WEIGHTS.POKEMON_WITH_ABILITY;
+                 addCriterionMet('pokemon_with_abilities', req);
             }
         });
-        parsedInstruction.pokemon_with_moves.forEach(({ pokemon, move }) => {
-            if (team.pokemons.some(p => p?.name === pokemon && p?.moves?.some(m => (typeof m === 'object' ? m.name : m)?.toLowerCase() === move))) {
+        parsedInstruction.pokemon_with_moves.forEach(req => { // req = { pokemon, move }
+            if (team.pokemons.some(p => p?.name === req.pokemon && p?.moves?.some(m => (typeof m === 'object' ? m.name : m)?.toLowerCase() === req.move))) {
                 score += SCORE_WEIGHTS.POKEMON_WITH_MOVE;
+                 addCriterionMet('pokemon_with_moves', req);
             }
         });
 
         // 3. Size/Weight Requests
-        parsedInstruction.size_requests.forEach(req => {
+        parsedInstruction.size_requests.forEach(req => { // req = { type, count }
             const count = team.pokemons.filter(p => p?.height !== null && p?.height !== undefined &&
                 ((req.type === 'small' && p.height <= SMALL_THRESHOLD_H) || (req.type === 'tall' && p.height >= TALL_THRESHOLD_H))
             ).length;
             if (count >= req.count) {
                 score += SCORE_WEIGHTS.SIZE_REQUEST;
-            } // Optional: Partial score if close?
+                addCriterionMet('size_requests', req);
+            }
         });
-        parsedInstruction.weight_requests.forEach(req => {
+        parsedInstruction.weight_requests.forEach(req => { // req = { type, count }
              const count = team.pokemons.filter(p => p?.weight !== null && p?.weight !== undefined &&
                  ((req.type === 'light' && p.weight <= LIGHT_THRESHOLD_HG) || (req.type === 'heavy' && p.weight >= HEAVY_THRESHOLD_HG))
              ).length;
             if (count >= req.count) {
                 score += SCORE_WEIGHTS.WEIGHT_REQUEST;
+                addCriterionMet('weight_requests', req);
             }
         });
 
         // 4. General Item/Move/Ability/Tera Presence
         parsedInstruction.items.forEach(item => {
             if (team.pokemons.some(p => p?.item?.toLowerCase() === item)) {
-                // Lower score than specific pokemon+item
-                score += SCORE_WEIGHTS.POKEMON_WITH_ITEM / 3; // Example fraction
+                score += SCORE_WEIGHTS.POKEMON_WITH_ITEM / 3;
+                addCriterionMet('items', item);
             }
         });
         parsedInstruction.moves.forEach(move => {
             if (team.pokemons.some(p => p?.moves?.some(m => (typeof m === 'object' ? m.name : m)?.toLowerCase() === move))) {
                 score += SCORE_WEIGHTS.GENERAL_MOVE;
+                addCriterionMet('moves', move);
             }
         });
         parsedInstruction.abilities.forEach(ability => {
             if (team.pokemons.some(p => p?.ability?.toLowerCase() === ability)) {
                 score += SCORE_WEIGHTS.GENERAL_ABILITY;
+                addCriterionMet('abilities', ability);
             }
         });
          parsedInstruction.tera_types.forEach(tera => {
              if (team.pokemons.some(p => p?.tera_type?.toLowerCase() === tera)) {
-                 score += SCORE_WEIGHTS.POKEMON_WITH_TERA / 3; // Example fraction
+                 score += SCORE_WEIGHTS.POKEMON_WITH_TERA / 3;
+                 addCriterionMet('tera_types', tera);
              }
          });
 
         // 5. Type / Role / Archetype Matching
-        // Basic Role Check (using stats - thresholds can be refined)
-        const checkRole = (p, role) => {
+        const checkRole = (p, role) => { /* ... (role checking logic remains same) ... */
              const stats = p?.stats;
              if (!stats) return false;
              // Use includes for flexibility (e.g., "strong attacker" includes "attacker")
@@ -724,53 +753,34 @@ const TeamMatcher = {
         parsedInstruction.roles.forEach(role => {
             if (team.pokemons.some(p => checkRole(p, role))) {
                 score += SCORE_WEIGHTS.GENERAL_ROLE;
+                addCriterionMet('roles', role);
             }
         });
 
         parsedInstruction.types.forEach(type => {
             if (team.pokemons.some(p => p?.types?.map(t => t.toLowerCase()).includes(type))) {
                 score += SCORE_WEIGHTS.GENERAL_TYPE;
+                addCriterionMet('types', type);
             }
         });
 
-        parsedInstruction.types_with_roles.forEach(tr => {
+        parsedInstruction.types_with_roles.forEach(tr => { // tr = { type, role }
              if (team.pokemons.some(p => p?.types?.map(t => t.toLowerCase()).includes(tr.type) && checkRole(p, tr.role))) {
                  score += SCORE_WEIGHTS.TYPE_ROLE_MATCH;
+                 addCriterionMet('types_with_roles', tr);
              }
          });
 
-         // Archetype Hints
-         parsedInstruction.archetype_hints.forEach(hintKey => {
-              const archetype = ARCHETYPES[hintKey];
-              if (archetype) {
-                  // Check for core pokemon presence
-                  if (archetype.cores?.some(coreSet => coreSet.every(coreMon => teamPokemonNamesLower.includes(coreMon)))) {
-                       score += SCORE_WEIGHTS.ARCHETYPE_HINT;
-                  }
-                  // Check for boosted types/roles
-                  if (archetype.boosts?.some(boost => {
-                      if (TERA_TYPES.includes(boost)) { // It's a type
-                          return team.pokemons.some(p => p?.types?.map(t => t.toLowerCase()).includes(boost));
-                      } else { // It's a role
-                           return team.pokemons.some(p => checkRole(p, boost));
-                      }
-                  })) {
-                      score += SCORE_WEIGHTS.ARCHETYPE_HINT / 3; // Smaller bonus for general synergy
-                  }
-                  // Check for penalties (e.g., don't want tailwind on trick room)
-                  if (archetype.penalties?.some(penalty => {
-                       // Check if team has the penalized element
-                       if (DataService.isValidMove(penalty) && team.pokemons.some(p => p?.moves?.some(m => (typeof m === 'object' ? m.name : m)?.toLowerCase() === penalty))) return true;
-                       if (DataService.isValidAbility(penalty) && team.pokemons.some(p => p?.ability?.toLowerCase() === penalty)) return true;
-                       // Add checks for penalized roles ('speedy') if needed
-                       return false; // Default false if no penalty found
-                    })) {
-                        score -= SCORE_WEIGHTS.ARCHETYPE_HINT / 2; // Penalty for conflicting elements
-                    }
-              }
-          });
+        // Convert Sets back to arrays for easier processing later if needed, though Sets are fine
+        const finalMetCriteria = {};
+        for (const key in metCriteria) {
+            finalMetCriteria[key] = [...metCriteria[key]].map(item => {
+                try { return JSON.parse(item); } // Try parsing back objects
+                catch (e) { return item; } // Keep primitives as is
+            });
+        }
 
-        return Math.max(0, score); // Ensure score doesn't go negative unless due to penalty
+        return { score: Math.max(0, score), metCriteria: finalMetCriteria };
     }
 };
 
@@ -778,13 +788,11 @@ const TeamMatcher = {
 const Generator = {
 
     async findMatchingTeams(instruction) {
-        console.log("Starting team generation for:", instruction);
         // 1. Ensure data is ready
         await DataService.initialize();
         if (!DataService.isInitialized || !DataService.getTeams()) {
             console.error("Data service not ready, cannot generate teams.");
-            // Return a specific error state if desired
-            return [[], true, "Data failed to load."]; // [teams, noDetect, errorMessage]
+            return [[], true, [], "Data failed to load."]; // [teams, noDetect, unmetCriteria, errorMessage]
         }
 
         // 2. Parse the instruction
@@ -792,47 +800,145 @@ const Generator = {
         try {
             parsedInstruction = InstructionParser.parse(instruction);
             if (!parsedInstruction) throw new Error("Parsing failed.");
-            console.log("Parsed Instruction:", JSON.stringify(parsedInstruction, null, 2)); // Pretty print parsed object
+            console.log("Parsed Instruction:", JSON.stringify(parsedInstruction, null, 2));
         } catch (error) {
             console.error("Error parsing instruction:", error);
-            return [[], true, "Could not understand the request."];
+             return [[], true, [], "Could not understand the request."];
         }
 
-        // 3. Score all available teams
+        // 3. Score all available teams and track met criteria
         const teams = DataService.getTeams();
-        const scoredTeams = teams.map((team, index) => {
+        const scoredTeams = [];
+        const overallMetCriteria = this._createEmptyMetCriteriaStructure(); // To aggregate across all teams
+
+         teams.forEach((team, index) => {
              try {
-                 const score = TeamMatcher.calculateMatchScore(parsedInstruction, team);
-                 return { team, score, index };
+                 const { score, metCriteria: teamMetCriteria } = TeamMatcher.calculateMatchScore(parsedInstruction, team);
+                 // Only consider teams with positive scores for unmet criteria analysis
+                 if (score > 0) {
+                     scoredTeams.push({ team, score, index });
+                     // Aggregate met criteria from this positively scoring team
+                     this._aggregateMetCriteria(overallMetCriteria, teamMetCriteria);
+                 } else if (score <= SCORE_WEIGHTS.NEGATIVE_CONSTRAINT_PENALTY) {
+                    // Optionally log teams heavily penalized by negations
+                    // console.log(`Team ${index} excluded due to negation violation.`);
+                 }
              } catch (error) {
                  console.error(`Error matching team index ${index} (Filename: ${team?.filename || 'N/A'}):`, error);
-                 return { team, score: 0, index }; // Assign score 0 if error occurs
+                 // Don't add to scoredTeams if error during scoring
              }
          });
 
-        // 4. Filter out teams with non-positive scores and sort by score descending
-        const validScoredTeams = scoredTeams.filter(st => st.score > 0);
-        validScoredTeams.sort((a, b) => b.score - a.score); // Highest score first
-
-        // Log top scores for debugging
-         // console.log("Top Scores:", validScoredTeams.slice(0, 10).map(st => ({ filename: st.team.filename, score: st.score })));
+        // 4. Filter out teams with non-positive scores and sort
+        // (Already filtered during scoring loop)
+        scoredTeams.sort((a, b) => b.score - a.score); // Highest score first
 
         // 5. Determine "no detection" and select best teams
-        const maxScore = validScoredTeams.length > 0 ? validScoredTeams[0].score : 0;
-        // Adjust threshold? Maybe require a minimum score > 10 or something?
-        const noDetect = maxScore <= 0; // Or maxScore < MINIMUM_RELEVANT_SCORE
+        const maxScore = scoredTeams.length > 0 ? scoredTeams[0].score : 0;
+        const noDetect = maxScore <= 0; // No teams scored positively
 
-        console.log("Max Score:", maxScore, "No Detect:", noDetect);
+        // Select teams (e.g., all with the highest score, or top N)
+        const bestTeamsRaw = noDetect ? [] : scoredTeams.filter(st => st.score === maxScore);
+        // Fallback: if NO teams had positive score, maybe show *something*?
+        // For now, we return empty if noDetect is true.
 
-        // Select teams with the maximum score (or maybe top N teams?)
-        // Let's return all teams with the highest score for now
-        const bestTeamsRaw = noDetect ? [] : validScoredTeams.filter(st => st.score === maxScore);
+        // 6. Identify Unmet Criteria
+        const unmetCriteriaList = noDetect ? [] : this._getUnmetCriteria(parsedInstruction, overallMetCriteria);
 
-        // 6. Format the output
+        // 7. Format the output
         const simplifiedTeams = bestTeamsRaw.map(st => this._simplifyTeamData(st.team));
 
-        return [simplifiedTeams, noDetect, null]; // [teams, noDetect, errorMessage]
+        return [simplifiedTeams, noDetect, unmetCriteriaList, null]; // [teams, noDetect, unmetCriteria, errorMessage]
     },
+
+     _createEmptyMetCriteriaStructure() {
+         // Creates an object with Sets to store unique met criteria across all teams
+         return {
+             pokemon: new Set(),
+             pokemon_with_items: new Set(), // Will store stringified {pokemon, item}
+             pokemon_with_tera: new Set(),    // Will store stringified {pokemon, tera_type}
+             pokemon_with_abilities: new Set(),// Will store stringified {pokemon, ability}
+             pokemon_with_moves: new Set(),   // Will store stringified {pokemon, move}
+             items: new Set(),
+             moves: new Set(),
+             abilities: new Set(),
+             tera_types: new Set(),
+             types_with_roles: new Set(), // Will store stringified {type, role}
+             types: new Set(),
+             roles: new Set(),
+             size_requests: new Set(),    // Will store stringified {type, count}
+             weight_requests: new Set(), // Will store stringified {type, count}
+         };
+     },
+
+     _aggregateMetCriteria(overallMet, teamMet) {
+         // Merges criteria met by a single team into the overall tracker
+         for (const category in teamMet) {
+             if (overallMet[category] && Array.isArray(teamMet[category])) {
+                 teamMet[category].forEach(value => {
+                     const key = typeof value === 'object' ? JSON.stringify(value) : value;
+                     overallMet[category].add(key);
+                 });
+             }
+         }
+     },
+
+      _getUnmetCriteria(parsed, overallMet) {
+         const unmet = [];
+
+         const checkCategory = (category, items, stringifier) => {
+             items.forEach(item => {
+                 const key = stringifier(item);
+                 if (!overallMet[category]?.has(key)) {
+                     unmet.push(this._getCriterionString(category, item));
+                 }
+             });
+         };
+
+         // Check each category from the parsed instruction
+         checkCategory('pokemon', parsed.pokemon, p => p); // Pokemon name (original case) is the key
+         checkCategory('pokemon_with_items', parsed.pokemon_with_items, JSON.stringify);
+         checkCategory('pokemon_with_tera', parsed.pokemon_with_tera, JSON.stringify);
+         checkCategory('pokemon_with_abilities', parsed.pokemon_with_abilities, JSON.stringify);
+         checkCategory('pokemon_with_moves', parsed.pokemon_with_moves, JSON.stringify);
+         checkCategory('items', parsed.items, i => i);
+         checkCategory('moves', parsed.moves, m => m);
+         checkCategory('abilities', parsed.abilities, a => a);
+         checkCategory('tera_types', parsed.tera_types, t => t);
+         checkCategory('types_with_roles', parsed.types_with_roles, JSON.stringify);
+         checkCategory('types', parsed.types, t => t);
+         checkCategory('roles', parsed.roles, r => r);
+         checkCategory('size_requests', parsed.size_requests, JSON.stringify);
+         checkCategory('weight_requests', parsed.weight_requests, JSON.stringify);
+
+         return unmet;
+     },
+
+     _getCriterionString(category, value) {
+         // Creates a user-friendly string for an unmet criterion
+         try {
+             switch (category) {
+                 case 'pokemon': return `Pokémon "${value}"`;
+                 case 'pokemon_with_items': return `There is no team with a "${value.pokemon}" with a "${value.item}"`;
+                 case 'pokemon_with_tera': return `There is no team with a "${value.pokemon}" with a "${value.tera_type}" Tera Type`;
+                 case 'pokemon_with_abilities': return `There is no team with a "${value.pokemon}" with "${value.ability}"`;
+                 case 'pokemon_with_moves': return `There is no team with a "${value.pokemon}" with "${value.move}"`;
+                 case 'items': return `There is no teams with a "${value}"`;
+                 case 'moves': return `There is no teams with "${value}"`;
+                 case 'abilities': return `There is no teams with "${value}"`;
+                 case 'tera_types': return `There is no teams with a "${value}" Tera Type`;
+                 case 'types_with_roles': return `There is no teams with a Type "${value.role}" "${value.type}" type`;
+                 case 'types': return `There is no teams with a "${value}" type`;
+                 case 'roles': return `There is no teams with a "${value}"`;
+                 case 'size_requests': return `There is no teams with ${value.count} ${value.type} Pokémon`;
+                 case 'weight_requests': return `There is no teams with ${value.count} ${value.type} Pokémon`;
+                 default: return JSON.stringify(value); // Fallback
+             }
+         } catch (e) {
+             return "an unspecified criterion"; // Error fallback
+         }
+     },
+
 
     _simplifyTeamData(team) {
         // Similar to original, but ensure robustness
@@ -873,7 +979,7 @@ const Generator = {
 window.generatePokepaste = async function(instruction) {
     // We wrap the Generator call in an async function for consistency,
     // even though initialize handles the await internally.
-    // This returns the [simplifiedTeams, noDetect, errorMessage] array.
+    // This returns the [simplifiedTeams, noDetect, unmetCriteriaList, errorMessage] array.
     return await Generator.findMatchingTeams(instruction);
 };
 

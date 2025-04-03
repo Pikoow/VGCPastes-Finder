@@ -84,47 +84,54 @@ function levenshteinDistance(a, b) {
 function findClosestPokemonName(inputPhrase) {
     const inputLower = inputPhrase.trim().toLowerCase();
 
-    if (!inputLower || inputLower.length < 2 || inputLower.length > 30 || IGNORED_WORDS.has(inputLower)) {
+    // Added check for DataService readiness
+    if (!inputLower || inputLower.length < 2 || inputLower.length > 30 || IGNORED_WORDS.has(inputLower) || !DataService.isInitialized) {
         return null;
     }
 
-    if (!window.pokemonNames || window.pokemonNames.size === 0) {
-        console.warn("Pokémon names list not available for suggestions.");
-        return null;
-    }
+    // Get names directly from DataService
+    const pokemonNamesArray = DataService.getAllPokemonNamesLower();
 
-    const pokemonNamesArray = [...window.pokemonNames];
+    if (pokemonNamesArray.length === 0) {
+         console.warn("Pokémon names list not available for suggestions (DataService).");
+         return null;
+    }
 
     if (pokemonNamesArray.includes(inputLower)) {
-        return null;
+        return null; // Already a perfect match
     }
 
     let closestMatch = null;
-    let minDistance = 3;
+    // Adjust minDistance threshold based on input length? Shorter words need closer match.
+    let minDistance = inputLower.length < 5 ? 1 : 2; // Allow only 1 change for short words, 2 for longer
 
     for (const name of pokemonNamesArray) {
         if (!name) continue;
 
+        // Basic length filter
         if (Math.abs(name.length - inputLower.length) > minDistance + 1) {
             continue;
         }
 
         const distance = levenshteinDistance(inputLower, name);
 
-        if (distance < minDistance) {
-            minDistance = distance;
-            closestMatch = name;
+        if (distance <= minDistance) {
+            // If multiple matches have the same minimum distance, prefer the one closer in length?
+            // Or just take the first one found.
+            if (closestMatch === null || distance < minDistance ) {
+                 minDistance = distance;
+                 closestMatch = name;
+            }
         }
     }
 
+    // Get original casing if a match was found
     if (closestMatch) {
-        const foundPokemon = typeof data !== 'undefined' && data?.flatMap(t => t.pokemons).find(p => p?.name?.toLowerCase() === closestMatch);
-        const originalCaseName = foundPokemon?.name || closestMatch; // Fallback to closestMatch if not found in data (should be rare)
-
-        if (originalCaseName.toLowerCase() === inputPhrase.trim().toLowerCase()) {
-            return null;
+        const originalCaseName = DataService.getOriginalCaseName(closestMatch);
+        // Ensure suggestion is actually different from input
+        if (originalCaseName && originalCaseName.toLowerCase() !== inputPhrase.trim().toLowerCase()) {
+            return originalCaseName;
         }
-        return originalCaseName;
     }
 
     return null;
@@ -147,16 +154,14 @@ document.getElementById("instruction").addEventListener("input", function() {
     const currentPhraseSpaced = inputText.substring(start, end).trim();
 
     // --- Attempt to detect hyphenated names being typed ---
-    // Check if the character before the start is a hyphen, and if the word before that might be part of a name
     let potentialHyphenatedPhrase = currentPhraseSpaced;
+    let actualStartForReplacement = start; // Keep track of the start index for replacement
     if (start > 0 && inputText[start - 1] === '-' && start > 1) {
         let prevWordStart = inputText.lastIndexOf(' ', start - 2) + 1;
         let potentialFirstPart = inputText.substring(prevWordStart, start - 1).trim();
-        // Avoid combining ignored words like "strike" if the first part is ignored
-        if (!IGNORED_WORDS.has(potentialFirstPart.toLowerCase())) {
+        if (potentialFirstPart && !IGNORED_WORDS.has(potentialFirstPart.toLowerCase())) {
            potentialHyphenatedPhrase = potentialFirstPart + "-" + currentPhraseSpaced;
-           // Update start position for replacement later
-           start = prevWordStart;
+           actualStartForReplacement = prevWordStart; // Update start position for replacement
         }
     }
 
@@ -166,16 +171,15 @@ document.getElementById("instruction").addEventListener("input", function() {
     // If no suggestion for hyphenated, try just the part after the space/hyphen
     if (!suggestedPokemon && potentialHyphenatedPhrase !== currentPhraseSpaced) {
         phraseToSuggestFor = currentPhraseSpaced; // Fallback to space-separated part
-        // Recalculate start position if we fell back
-        start = inputText.lastIndexOf(' ', cursorPosition - 1) + 1;
+        actualStartForReplacement = start; // Reset start position if we fell back
         suggestedPokemon = findClosestPokemonName(phraseToSuggestFor);
     }
 
     // --- Construct suggested text and display ---
     let suggestionText = null;
     if (suggestedPokemon && suggestedPokemon.toLowerCase() !== phraseToSuggestFor.toLowerCase()) {
-        // Replace the identified phrase (phraseToSuggestFor) with the suggestion
-        suggestionText = inputText.substring(0, start) + suggestedPokemon + inputText.substring(end);
+        // Replace the identified phrase with the suggestion using actualStartForReplacement
+        suggestionText = inputText.substring(0, actualStartForReplacement) + suggestedPokemon + inputText.substring(end);
     }
 
 
@@ -185,30 +189,21 @@ document.getElementById("instruction").addEventListener("input", function() {
         suggestionLink.onclick = (e) => {
             e.preventDefault();
             const currentInput = document.getElementById("instruction");
-            const currentCursorPos = currentInput.selectionStart;
+            // const currentCursorPos = currentInput.selectionStart; // Less reliable after change
             const originalLength = inputText.length;
 
             currentInput.value = suggestionText + " "; // Add space after suggestion
             didYouMeanDiv.classList.add("hidden"); // Hide after clicking
 
-            // Try to restore cursor position intelligently
-            const newLength = suggestionText.length;
-            const diff = newLength - (end - start); // Length difference of the replaced part
-            let newCursorPos = end + diff + 1; // Place cursor after the replaced word + space
-
-            // Adjust if original cursor was within the replaced word
-             if (currentCursorPos >= start && currentCursorPos <= end) {
-                 newCursorPos = start + suggestedPokemon.length + 1; // Place cursor after the inserted suggestion + space
-             } else if (currentCursorPos > end) {
-                 newCursorPos = currentCursorPos + diff + 1; // Adjust position if cursor was after replaced word
-             } else { // Cursor was before the change
-                 newCursorPos = currentCursorPos; // Keep original position (usually start)
-             }
-             // Ensure cursor is within bounds
-             newCursorPos = Math.max(0, Math.min(newCursorPos, currentInput.value.length));
+            // Set cursor position reliably to the end of the inserted suggestion + space
+            const newCursorPos = actualStartForReplacement + suggestedPokemon.length + 1;
 
             currentInput.focus();
-            currentInput.setSelectionRange(newCursorPos, newCursorPos);
+             // Ensure cursor is within bounds and set position
+            currentInput.setSelectionRange(
+                 Math.max(0, Math.min(newCursorPos, currentInput.value.length)),
+                 Math.max(0, Math.min(newCursorPos, currentInput.value.length))
+             );
 
             // Optionally trigger search immediately: triggerSearch();
         };
@@ -233,6 +228,8 @@ const otherTeamsList = document.getElementById("other-teams-list");
 const searchText = document.getElementById("search-text");
 const loadingSpinner = document.getElementById("loading-spinner");
 const initialMessage = document.getElementById("initial-message"); // Get initial message element
+const unmetCriteriaDiv = document.getElementById("unmet-criteria-message"); // Get unmet criteria div
+const unmetCriteriaListElem = unmetCriteriaDiv?.querySelector('ul'); // Find the ul inside it
 
 // --- State Variables for Current Search ---
 let currentSearchResults = []; // Stores the full list of teams from the last search
@@ -255,6 +252,8 @@ async function triggerSearch() {
     otherTeamsTitle.classList.add('hidden');
     otherTeamsList.innerHTML = '';
     document.getElementById("did-you-mean").classList.add("hidden"); // Hide suggestion
+    unmetCriteriaDiv.classList.add('hidden'); // Hide unmet criteria message
+    if (unmetCriteriaListElem) unmetCriteriaListElem.innerHTML = ''; // Clear previous unmet list
     currentSearchResults = []; // Reset search results
     currentMainTeamIndex = -1; // Reset main team index
 
@@ -263,15 +262,26 @@ async function triggerSearch() {
 
     try {
         // Call the generation function from generate.js
-        // Ensure generatePokepaste is awaited if it's async
-        const [teams, noDetect] = await window.generatePokepaste(instruction);
+        // Returns: [teams, noDetect, unmetCriteriaList, errorMessage]
+        const [teams, noDetect, unmetCriteriaList, errorMsg] = await window.generatePokepaste(instruction);
+
+        // Handle explicit errors first
+        if (errorMsg) {
+            throw new Error(errorMsg); // Propagate error to catch block
+        }
+
+        // Display unmet criteria message if any were found
+        if (unmetCriteriaList && unmetCriteriaList.length > 0 && unmetCriteriaListElem) {
+             unmetCriteriaListElem.innerHTML = unmetCriteriaList.map(item => `<li>${item}</li>`).join('');
+             unmetCriteriaDiv.classList.remove('hidden');
+        }
+
 
         if ((!teams || teams.length === 0)) {
-             // Handle case where generatePokepaste returns truly empty or error
             teamTitle.textContent = 'No Results';
-            teamContainer.innerHTML = `<div class="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">No teams found matching your query. Try different keywords or check the format help (?).</div>`;
+            teamContainer.innerHTML = `<div class="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">No teams found matching your query${unmetCriteriaList?.length > 0 ? ' based on the remaining criteria' : ''}. Try different keywords or check the format help (?).</div>`;
             otherTeamsContainer.classList.add('hidden'); // Hide other teams section
-
+             // Keep the unmet criteria message visible if it was populated
         } else {
              // We have at least one team
              currentSearchResults = teams; // Store the full results
@@ -289,17 +299,8 @@ async function triggerSearch() {
                   otherTeamsContainer.classList.add('hidden'); // Hide if only one team total
              }
 
-             // Adjust message if the main result was random due to no detection
-             if (noDetect && mainTeam) {
-                 otherTeamsContainer.classList.remove('hidden'); // Show the container
-                 const count = currentSearchResults.length - 1;
-                 otherTeamsTitle.textContent = `No strong matches found. Showing a relevant team${count > 0 ? ' and potential alternatives:' : '.'}`;
-                 otherTeamsTitle.classList.remove('hidden');
-                 if (count === 0) {
-                    otherTeamsList.innerHTML = ''; // No others to show if only one random result
-                 }
-                 // The main team is already displayed
-             }
+             // Adjust message if the main result was random due to no detection (Not currently implemented in generate.js, but could be)
+             // if (noDetect && mainTeam) { ... }
         }
 
     } catch (error) {
@@ -308,6 +309,8 @@ async function triggerSearch() {
         teamContainer.innerHTML = `<div class="p-4 text-center text-red-500 dark:text-red-400 text-sm">Sorry, something went wrong during the search. Please try again later.<br><span class="text-xs">${error.message}</span></div>`;
         copyAllBtn.classList.add('hidden');
         otherTeamsContainer.classList.add('hidden');
+         unmetCriteriaDiv.classList.add('hidden'); // Hide unmet on error too
+         if (unmetCriteriaListElem) unmetCriteriaListElem.innerHTML = '';
         currentSearchResults = [];
         currentMainTeamIndex = -1;
     } finally {
@@ -370,10 +373,11 @@ function updateOtherTeamsDisplay() {
             const spriteContainer = document.createElement('div');
             spriteContainer.className = 'flex flex-wrap gap-1 justify-center';
             team.pokemons.slice(0, 6).forEach(pokemon => { // Show max 6 sprites
+                 if (!pokemon) return; // Skip if pokemon data is null/invalid
                 const img = document.createElement('img');
                 img.src = pokemon.sprite || 'static/assets/pokeball_icon.png';
                 img.alt = pokemon.name || '';
-                img.className = 'w-5 h-5';
+                img.className = 'w-5 h-5 object-contain'; // Use object-contain
                 img.onerror = () => { img.src = 'static/assets/pokeball_icon.png'; }; // Fallback sprite
                 spriteContainer.appendChild(img);
             });
@@ -431,8 +435,11 @@ function displayTeamInGrid(team, container) {
 
     // 2. Create Data Rows for each Pokémon
     team.pokemons.forEach((pokemon, index) => {
+         if (!pokemon) return; // Skip if pokemon data is missing in the array
+
         const row = document.createElement('div');
-        const altClass = index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:dark-row-alt';
+        // Adjusted dark mode alt row color class name
+        const altClass = index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-excel-dark-alt';
         row.className = `excel-row ${altClass}`;
 
         const itemName = pokemon.item && pokemon.item !== "None" ? pokemon.item : null;
@@ -450,29 +457,19 @@ function displayTeamInGrid(team, container) {
 
         let itemCellHTML = `<span class="text-gray-400 dark:text-gray-500 italic text-xs">None</span>`;
         if (itemName) {
-            // Corrected fallback logic: The span should be visible *initially* and hidden by JS if the image loads.
-            // But CSS approach is simpler: Show span only if img has error.
+            // Fallback logic: Display text if image fails to load.
             itemCellHTML = `
-                <img src="${itemSpriteUrl}" alt="${itemName}" class="w-4 h-4 mr-1 inline-block"
+                <img src="${itemSpriteUrl}" alt="${itemName}" class="w-4 h-4 mr-1 inline-block object-contain"
                      onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';"
+                     onload="this.style.display='inline'; this.nextElementSibling.style.display='none';"
                      title="${itemName}">
                 <span class="item-fallback-text" style="display:none;">${itemName}</span>
             `;
-             // If you suspect many items might fail loading, pre-render the text and hide image if it loads:
-             /*
-             itemCellHTML = `
-                 <img src="${itemSpriteUrl}" alt="" class="w-4 h-4 mr-1 inline-block" style="display:none;"
-                      onload="this.style.display='inline'; this.nextElementSibling.style.display='none';"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" <!-- Keep error handler -->
-                      title="${itemName}">
-                 <span class="item-fallback-text">${itemName}</span>
-             `;
-             */
         }
 
         row.innerHTML = `
             <div class="excel-cell cell-sprite">
-                <img src="${pokemon.sprite || 'static/assets/pokeball_icon.png'}" alt="${pokemon.name || 'Pokemon'}" class="w-8 h-8 mx-auto" onerror="this.onerror=null; this.src='static/assets/pokeball_icon.png';">
+                <img src="${pokemon.sprite || 'static/assets/pokeball_icon.png'}" alt="${pokemon.name || 'Pokemon'}" class="w-8 h-8 mx-auto object-contain" onerror="this.onerror=null; this.src='static/assets/pokeball_icon.png';">
             </div>
             <div class="excel-cell font-medium cell-wrap">${pokemon.name || 'Unknown'}</div>
             <div class="excel-cell cell-item">${itemCellHTML}</div>
@@ -483,10 +480,12 @@ function displayTeamInGrid(team, container) {
             ${moves.slice(0, 4).map(move => {
                 const moveName = move?.name || '-';
                 const moveType = move?.type?.toLowerCase() || 'unknown';
+                 // Capitalize first letter of type for badge
+                 const displayType = moveType.charAt(0).toUpperCase() + moveType.slice(1);
                 return `
                 <div class="excel-cell cell-move text-xs">
                     ${moveName !== '-' ? `
-                        <span class="type-badge-excel type-${moveType} mr-1">${moveType.toUpperCase() || '?'}</span>
+                        <span class="type-badge-excel type-${moveType} mr-1" title="${displayType} Type">${moveType.toUpperCase() || '?'}</span>
                         ${moveName}
                     ` : `
                         <span class="text-gray-400 dark:text-gray-500">-</span>
@@ -506,30 +505,40 @@ function copyTeamToClipboard(team) {
     if (!team || !team.pokemons) return;
 
     const teamText = team.pokemons.map(pokemon => {
+        if (!pokemon) return ""; // Handle potential null pokemon in array
+
          const name = pokemon.name || "Unknown";
-         const item = pokemon.item && pokemon.item !== "None" ? pokemon.item : "";
-         const ability = pokemon.ability || "Unknown";
+         // Ensure item/ability/tera aren't added if null or 'None'
+         const item = pokemon.item && pokemon.item !== "None" ? ` @ ${pokemon.item}` : "";
+         const ability = pokemon.ability && pokemon.ability !== "None" ? `Ability: ${pokemon.ability}` : "";
          const tera = pokemon.tera_type && pokemon.tera_type !== "None" ? `Tera Type: ${pokemon.tera_type}` : "";
+
          const moves = (pokemon.moves || [])
              .map(m => (m && m.name && m.name !== '-') ? `- ${m.name}` : null)
-             .filter(m => m !== null)
-             .join("\n");
+             .filter(m => m !== null); // Filter out nulls before joining
 
-        let pokemonString = `${name}${item ? ` @ ${item}` : ''}\n`;
-        pokemonString += `Ability: ${ability}\n`;
+        let pokemonString = `${name}${item}\n`;
+        if (ability) pokemonString += `${ability}\n`;
+        // Add EVs/IVs/Nature here if they exist in the data and are desired
+        // pokemonString += `EVs: ...\n`;
+        // pokemonString += `IVs: ...\n`;
         if (tera) pokemonString += `${tera}\n`;
-        if (moves) pokemonString += `${moves}`;
+        if (moves.length > 0) pokemonString += `${moves.join("\n")}`;
 
-        return pokemonString.trim();
-    }).join("\n\n");
+        return pokemonString.trim(); // Trim whitespace from each entry
+    }).filter(Boolean).join("\n\n"); // Filter out empty strings before final join
 
     navigator.clipboard.writeText(teamText).then(() => {
         const message = document.getElementById("global-copy-message");
         message.classList.add("visible");
-        message.classList.remove("hidden");
+        // message.classList.remove("hidden"); // visible class handles opacity/transform
 
-        setTimeout(() => {
+        // Clear previous timeouts if any
+        if (message.timeoutId) clearTimeout(message.timeoutId);
+
+        message.timeoutId = setTimeout(() => {
              message.classList.remove("visible");
+             message.timeoutId = null; // Clear the stored timeout ID
         }, 2000);
 
     }).catch(err => {

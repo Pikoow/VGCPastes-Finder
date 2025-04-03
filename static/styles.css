@@ -424,6 +424,38 @@ html.dark #format-help code {
     color: #d1d5db; /* gray-300 */
 }
 
+/* --- Unmet Criteria Message --- */
+#unmet-criteria-message.unmet-criteria-box {
+  background-color: #FFFBEB; /* Tailwind yellow-50 */
+  border: 1px solid #FDE68A; /* Tailwind yellow-200 */
+  color: #92400E; /* Tailwind yellow-900 */
+  padding: 8px 12px;
+  border-radius: 3px;
+  font-size: 0.75rem; /* Small text */
+  line-height: 1.4;
+}
+html.dark #unmet-criteria-message.unmet-criteria-box {
+  background-color: #422006; /* Dark yellow background */
+  border-color: #78350F; /* Dark yellow border */
+  color: #FDE68A; /* Light yellow text */
+}
+#unmet-criteria-message ul {
+  margin-top: 4px;
+  color: #B45309; /* Tailwind yellow-700 */
+}
+html.dark #unmet-criteria-message ul {
+  color: #FCD34D; /* Tailwind yellow-400 */
+}
+#unmet-criteria-message li code { /* Style code blocks within the message if needed */
+  font-size: 0.7rem;
+  padding: 0 2px;
+  border-radius: 2px;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+html.dark #unmet-criteria-message li code {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
 /* --- General Dark Mode Overrides (Tailwind fallbacks) --- */
 /* Add explicit dark styles for elements that might be missed by utility classes */
 html.dark .bg-gray-50 { background-color: #1f2937cc; } /* Slightly transparent gray-800 */

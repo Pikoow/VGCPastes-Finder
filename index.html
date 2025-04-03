@@ -62,31 +62,61 @@
             <span class="text-gray-600 dark:text-gray-400">?</span>
         </div>
 
+        <!-- Unmet Criteria Message Area -->
+        <div id="unmet-criteria-message" class="text-left text-xs mb-2 pl-1 hidden unmet-criteria-box">
+            <span class="font-semibold">Note:</span> The following parts of your query didn't match any teams exactly and were ignored:
+            <ul class="list-disc list-inside ml-2">
+                <!-- Messages will be inserted here by script.js -->
+            </ul>
+        </div>
+
+
         <!-- Advanced Team Search Help Section (Initially hidden via CSS opacity/max-height) -->
         <div id="format-help" class="mb-4 p-3 border text-xs"> <!-- Style as needed -->
             <h3 class="text-sm font-bold mb-2">Search Help</h3>
-            <p class="mb-2">Use keywords to find teams. Examples:</p>
+            <p class="mb-2">Use keywords to find teams. Combine terms for more specific results. Examples:</p>
             <ul class="list-disc list-inside space-y-1">
                 <li>Specific Pokémon: <code>Flutter Mane</code>, <code>Urshifu-Rapid-Strike</code></li>
-                <li>With Items/Abilities/Moves/Tera:
-                    <ul>
-                        <li><code>Kyogre with Choice Specs</code></li>
-                        <li><code>Tornadus Prankster</code> | <code>Tornadus with Prankster</code></li>
-                        <li><code>Gholdengo Tera Steel</code></li>
-                        <li><code>Incineroar with Parting Shot</code></li>
+                <li>Pokémon with Specifics:
+                    <ul class="ml-4 list-disc list-inside">
+                        <li><code>Kyogre with Choice Specs</code> (Item)</li>
+                        <li><code>Gholdengo Tera Steel</code> (Tera Type)</li>
+                        <li><code>Tornadus Prankster</code> | <code>Tornadus with Prankster</code> (Ability)</li>
+                        <li><code>Incineroar with Parting Shot</code> (Move)</li>
                    </ul>
                 </li>
-                <li>General Moves/Abilities: <code>team with intimidate</code>, <code>tailwind team</code></li>
-                <li>Types/Roles: <code>water type attacker</code>, <code>fast pokemon</code>, <code>bulky steel type</code></li>
-                <li>Size/Weight (specify count):
-                   <ul>
-                        <li><code>2 small pokemon</code></li>
-                        <li><code>1 heavy pokemon</code></li>
-                        <li><code>team with 3 tall pokemon</code></li>
+                <li>General Moves/Abilities/Items/Tera:
+                    <ul class="ml-4 list-disc list-inside">
+                        <li><code>team with intimidate</code></li>
+                        <li><code>tailwind team</code></li>
+                        <li><code>team with safety goggles</code></li>
+                        <li><code>team with grass tera</code></li>
+                    </ul>
+                </li>
+                <li>Types & Roles:
+                    <ul class="ml-4 list-disc list-inside">
+                        <li><code>water type</code> (Any Pokémon has type)</li>
+                        <li><code>fast attacker</code> (Based on stats)</li>
+                        <li><code>bulky steel type</code> (Combines type and role)</li>
+                        <li>Roles include: <code>attacker</code>, <code>special attacker</code>, <code>fast</code>/<code>speedy</code>, <code>bulky</code>/<code>hp</code>, <code>defensive</code>, <code>specially defensive</code>, <code>wall</code></li>
+                    </ul>
+                </li>
+                <li>Size/Weight (Specify count):
+                   <ul class="ml-4 list-disc list-inside">
+                        <li><code>2 small pokemon</code> (<= 0.5m)</li>
+                        <li><code>1 heavy pokemon</code> (>= 200kg)</li>
+                        <li><code>team with 3 tall pokemon</code> (>= 2.0m)</li>
                    </ul>
                </li>
-                <li>Combine: <code>Sun team with Venusaur Chlorophyll and 1 heavy pokemon</code></li>
-                <li>Tip: Be specific! Use full names like <code>Landorus-Therian</code>. Check Pokémon/move/ability spelling.</li>
+               <li>Negations:
+                   <ul class="ml-4 list-disc list-inside">
+                       <li><code>team without Incineroar</code></li>
+                       <li><code>no fake out</code></li>
+                       <li><code>balance without Amoonguss</code></li>
+                   </ul>
+               </li>
+                <li>Combine Criteria: <code>Sun team with Venusaur Chlorophyll and 1 heavy pokemon without Torkoal</code></li>
+                <li>Tip: Be specific! Use full names like <code>Landorus-Therian</code> instead of just <code>Landorus</code>. Check Pokémon, move, ability, and item spellings. Suggestions may appear if a typo is detected.</li>
             </ul>
        </div>
 
