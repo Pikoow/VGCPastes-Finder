@@ -203,7 +203,7 @@ async function triggerSearch() {
     document.getElementById("did-you-mean").classList.add("hidden"); // Hide suggestion
 
     // Simulate network delay/processing time (optional)
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
         // Call the generation function from generate.js
