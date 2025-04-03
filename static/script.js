@@ -48,7 +48,7 @@ const IGNORED_WORDS = new Set([
     'rather', 'type', 'types', 'move', 'moves', 'ability', 'abilities', 'item', 'items',
     'of', 'in', 'out', 'on', 'off', 'up', 'down', 'at', 'by', 'via', 'per',
     'as', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'it', 'its',
-    'no', 'not', 'nor', 'or', 'but', 'so', 'if', 'then', 'than'
+    'no', 'not', 'nor', 'or', 'but', 'so', 'if', 'then', 'than', 'without'
 ]);
 
 // Levenshtein distance function for string similarity
@@ -103,7 +103,7 @@ function findClosestPokemonName(inputPhrase) {
 
     let closestMatch = null;
     // Adjust minDistance threshold based on input length? Shorter words need closer match.
-    let minDistance = inputLower.length < 5 ? 1 : 2; // Allow only 1 change for short words, 2 for longer
+    let minDistance = inputLower.length < 5 ? 3 : 5; // Allow only 1 change for short words, 2 for longer
 
     for (const name of pokemonNamesArray) {
         if (!name) continue;

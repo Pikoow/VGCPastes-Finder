@@ -294,14 +294,22 @@ const InstructionParser = {
                      }
                      break;
                  case 'negation': // Handle "without X"
-                     parsed.negations.push(entity.value); // value = { type: 'pokemon'|'item'|..., value: string }
+                     // Ensure we don't add duplicate negations (e.g., if regex accidentally matched overlapping parts)
+                     if (!parsed.negations.some(neg => neg.type === entity.value.type && neg.value === entity.value.value)) {
+                         parsed.negations.push(entity.value); // value = { type: 'pokemon'|'item'|..., value: string }
+                     }
                      break;
+                case 'archetype': // Handle archetype hints
+                    // Could add to a specific list or just use for scoring hints later
+                    // For now, just acknowledge it was found. Can refine later.
+                    // Example: parsed.archetype_hints.push(entity.key);
+                    break;
             }
         }
 
         // Final cleanup: Remove duplicates from lists
         for (const key in parsed) {
-            if (Array.isArray(parsed[key]) && key !== 'pokemon_with_items' && key !== 'pokemon_with_tera' /* etc. keep objects unique */) {
+            if (Array.isArray(parsed[key]) && key !== 'pokemon_with_items' && key !== 'pokemon_with_tera' /* etc. keep objects unique */ && key !== 'negations' && key !== 'size_requests' && key !== 'weight_requests' && key !== 'types_with_roles') {
                  // Simple uniqueness for primitives
                  if (parsed[key].length > 0 && typeof parsed[key][0] !== 'object') {
                       parsed[key] = [...new Set(parsed[key])];
@@ -330,6 +338,7 @@ const InstructionParser = {
             size_requests: [], // { type: 'small' | 'tall', count: number }
             weight_requests: [], // { type: 'light' | 'heavy', count: number }
             negations: [], // { type: 'pokemon' | 'item' | ..., value: string (lower) } - Things NOT wanted
+            // archetype_hints: [], // Optional: To store detected archetypes
         };
     },
 
@@ -341,11 +350,12 @@ const InstructionParser = {
         // Sort known names by length descending to find longer names first
         const sortedPokemonNames = DataService.getAllPokemonNamesLower().sort((a, b) => b.length - a.length);
         sortedPokemonNames.forEach(name => {
-            const regex = new RegExp(`\\b${this._escapeRegex(name)}\\b`, 'g');
+            // Use word boundaries that account for hyphens
+            const regex = new RegExp(`(?<=^|\\s|\\()${this._escapeRegex(name)}(?=$|\\s|\\)|,|\\.)`, 'g');
             let match;
             while ((match = regex.exec(lowerInstruction)) !== null) {
-                 // Avoid matching substrings of already found longer names
-                 if (!entities.some(e => e.type === 'pokemon' && match.index >= e.start && (match.index + name.length) <= e.end)) {
+                 // Avoid matching substrings of already found longer names at the same position
+                 if (!entities.some(e => e.type === 'pokemon' && match.index >= e.start && (match.index + name.length) <= e.end && e.start === match.index)) {
                     entities.push({ type: 'pokemon', value: name, start: match.index, end: match.index + name.length });
                  }
             }
@@ -360,30 +370,40 @@ const InstructionParser = {
 
         multiWordMatchers.forEach(({ type, list }) => {
             const sortedList = list
-                .filter(term => term.includes(' ')) // Only multi-word
+                // Consider multi-word OR hyphenated as complex terms requiring this priority
+                .filter(term => term.includes(' ') || term.includes('-'))
                 .sort((a, b) => b.length - a.length); // Longest first
 
             sortedList.forEach(term => {
-                const regex = new RegExp(`\\b${this._escapeRegex(term)}\\b`, 'g');
+                // Use word boundaries that account for hyphens
+                const regex = new RegExp(`(?<=^|\\s|\\()${this._escapeRegex(term)}(?=$|\\s|\\)|,|\\.)`, 'g');
                 let match;
                 while ((match = regex.exec(lowerInstruction)) !== null) {
                     // Basic check: Don't add if it overlaps exactly with a found Pokémon
                     if (!entities.some(e => e.type === 'pokemon' && e.start === match.index && e.end === (match.index + term.length))) {
-                         entities.push({ type, value: term, start: match.index, end: match.index + term.length });
+                         // Check if already subsumed by a longer entity of the same type
+                         if (!entities.some(e => e.type === type && match.index >= e.start && (match.index + term.length) <= e.end && e.start === match.index)) {
+                              entities.push({ type, value: term, start: match.index, end: match.index + term.length });
+                         }
                     }
                 }
             });
         });
 
-         // --- Priority 3: Specific Keywords (Tera, Size, Weight, Roles, Without) ---
+         // --- Priority 3: Specific Keywords (Tera, Size, Weight, Roles, Without, Archetypes) ---
          // Tera Types (often follows Pokémon name or "tera")
          TERA_TYPES.forEach(tera => {
-             const regex = new RegExp(`\\btera\\s+${this._escapeRegex(tera)}\\b`, 'g');
+             // Match "tera [type]" or "[type] tera"
+             const regex = new RegExp(`\\b(?:tera\\s+${this._escapeRegex(tera)}|${this._escapeRegex(tera)}\\s+tera)\\b`, 'gi');
              let match;
              while ((match = regex.exec(lowerInstruction)) !== null) {
-                 entities.push({ type: 'tera', value: tera, start: match.index + 5, end: match.index + 5 + tera.length }); // Position of the type itself
+                 // Find the actual position of the tera type word itself within the match
+                 const typeIndex = match[0].indexOf(tera);
+                 if(typeIndex !== -1) {
+                    entities.push({ type: 'tera', value: tera, start: match.index + typeIndex, end: match.index + typeIndex + tera.length });
+                 }
              }
-             // Also look for "pokemon tera [type]" - handled in _parsePokemonContext
+             // Direct association like "pokemon tera [type]" is handled in _parsePokemonContext
          });
 
          // Size/Weight Requests
@@ -391,31 +411,40 @@ const InstructionParser = {
          let swMatch;
          while ((swMatch = sizeWeightRegex.exec(lowerInstruction)) !== null) {
              const count = parseInt(swMatch[1], 10);
-             const type = swMatch[2];
+             const type = swMatch[2].toLowerCase(); // Ensure lowercase type
              if (!isNaN(count) && count > 0) {
                  const entityType = (type === 'small' || type === 'tall') ? 'size' : 'weight';
                  entities.push({ type: entityType, value: { type, count }, start: swMatch.index, end: swMatch.index + swMatch[0].length });
              }
          }
 
-         // Roles (Keywords from Constants)
-         // TODO: Implement role detection similar to other entities
+         // Roles (Keywords from Constants) - Needs implementation if roles beyond stats are needed
 
-         // Negations ("without", "no", "not including") - Basic Example
-         const negationRegex = /\b(?:without|no|not including)\s+([a-z-]+(?:-[a-z]+)?)\b/g; // Matches "without [term]"
-         let negMatch;
-         while ((negMatch = negationRegex.exec(lowerInstruction)) !== null) {
-             const term = negMatch[1];
-             let termType = 'unknown';
-             // Attempt to classify the negated term
-             if (DataService.isValidPokemon(term)) termType = 'pokemon';
-             else if (DataService.isValidItem(term)) termType = 'item';
-             else if (DataService.isValidAbility(term)) termType = 'ability';
-             else if (DataService.isValidMove(term)) termType = 'move';
-             else if (TERA_TYPES.includes(term)) termType = 'type'; // Could be tera or general type
 
-             entities.push({ type: 'negation', value: { type: termType, value: term }, start: negMatch.index, end: negMatch.index + negMatch[0].length });
-         }
+         // Negations ("without", "no", "not including") - Handles multiple negations and multi-word items/moves
+        // Updated Regex to capture multi-word terms after negation and stop at next negation
+        const negationRegex = /\b(?:without|no|not including)\s+([a-z0-9]+(?:(?:-|\s)(?!without\b|no\b|not including\b|and\b|or\b|with\b)[a-z0-9]+)*)\b/gi;
+        let negMatch;
+        while ((negMatch = negationRegex.exec(lowerInstruction)) !== null) {
+            const term = negMatch[1].trim().toLowerCase(); // Capture, trim, and lowercase the term
+            if (!term) continue; // Skip if term is empty after trim
+
+            let termType = 'unknown';
+            // Attempt to classify the negated term
+            if (DataService.isValidPokemon(term)) termType = 'pokemon';
+            else if (DataService.isValidItem(term)) termType = 'item';
+            else if (DataService.isValidAbility(term)) termType = 'ability';
+            else if (DataService.isValidMove(term)) termType = 'move';
+            else if (TERA_TYPES.includes(term)) termType = 'type'; // Could be tera or general type
+
+            // Push the entity covering the whole "without term" phrase
+            entities.push({
+                type: 'negation',
+                value: { type: termType, value: term },
+                start: negMatch.index,
+                end: negMatch.index + negMatch[0].length
+            });
+        }
 
          // Archetypes
          for (const key in ARCHETYPES) {
@@ -431,16 +460,16 @@ const InstructionParser = {
 
          // --- Priority 4: Single-Word Items, Moves, Abilities, Types (Disambiguated) ---
         const singleWordMatchers = [
-             { type: 'item', list: DataService.getAllItemsLower().filter(i => !i.includes(' ')) },
-             { type: 'move', list: DataService.getAllMovesLower().filter(m => !m.includes(' ')) },
-             { type: 'ability', list: DataService.getAllAbilitiesLower().filter(a => !a.includes(' ')) },
+             { type: 'item', list: DataService.getAllItemsLower().filter(i => !i.includes(' ') && !i.includes('-')) },
+             { type: 'move', list: DataService.getAllMovesLower().filter(m => !m.includes(' ') && !m.includes('-')) },
+             { type: 'ability', list: DataService.getAllAbilitiesLower().filter(a => !a.includes(' ') && !a.includes('-')) },
              { type: 'type', list: TERA_TYPES } // Treat general types similarly
         ];
 
         singleWordMatchers.forEach(({ type, list }) => {
              list.forEach(term => {
                  // Match whole word only
-                 const regex = new RegExp(`\\b${this._escapeRegex(term)}\\b`, 'g');
+                 const regex = new RegExp(`(?<=^|\\s|\\()${this._escapeRegex(term)}(?=$|\\s|\\)|,|\\.)`, 'g');
                  let match;
                  while ((match = regex.exec(lowerInstruction)) !== null) {
                      // *** Crucial Disambiguation ***
@@ -448,14 +477,18 @@ const InstructionParser = {
                      const isSubsumed = entities.some(e =>
                          e.start < (match.index + term.length) && // Entity starts before the term ends
                          e.end > match.index && // Entity ends after the term starts
-                         (e.end - e.start) > term.length // Entity is longer than the term itself
+                         // Check if it's strictly longer OR if it's a multi-word entity covering this single word
+                         ((e.end - e.start) > term.length || (e.value && (e.value.includes(' ') || e.value.includes('-'))))
                      );
 
                      if (!isSubsumed) {
                          // Also check if it's *exactly* overlapping a different entity type already logged
                          // (e.g., if "Rock" type overlaps with "Damp Rock" item, the item takes precedence)
+                         // OR if it overlaps a negation phrase
                          const exactOverlap = entities.some(e => e.start === match.index && e.end === (match.index + term.length));
-                         if (!exactOverlap) {
+                         const overlapsNegation = entities.some(e => e.type === 'negation' && match.index >= e.start && (match.index + term.length) <= e.end);
+
+                         if (!exactOverlap && !overlapsNegation) {
                             entities.push({ type, value: term, start: match.index, end: match.index + term.length });
                          }
                      }
@@ -473,101 +506,116 @@ const InstructionParser = {
 
         // Find the end of the relevant phrase for this Pokémon
         // Look for the next recognized Pokémon, or keywords indicating a break, or end of string
-        const nextPokemon = parsed.pokemon.find(p => {
-            const lowerP = p.toLowerCase();
-            const index = lowerInstruction.indexOf(lowerP, searchStart);
-            return index !== -1 && lowerP !== pokemonEntity.value; // Find the *next different* pokemon
-        });
-        if (nextPokemon) {
-            searchEnd = lowerInstruction.indexOf(nextPokemon.toLowerCase(), searchStart);
+        const potentialEntitiesAfter = this._findAllPotentialEntities(lowerInstruction.substring(searchStart));
+        const nextPokemonEntity = potentialEntitiesAfter.find(e => e.type === 'pokemon');
+
+        if (nextPokemonEntity) {
+            // Adjust searchEnd to be the start of the next Pokémon mention in the original string
+            searchEnd = searchStart + nextPokemonEntity.start;
         }
         // Could add other breaking keywords like "and a team with", etc.
 
         const contextText = lowerInstruction.substring(searchStart, searchEnd);
 
-        // 1. Check for Tera Type: "pokemon tera [type]" or "[type] tera pokemon" (less common)
+        // 1. Check for Tera Type: "pokemon tera [type]" or "pokemon [type] tera"
         TERA_TYPES.forEach(tera => {
-            const teraRegex = new RegExp(`\\btera\\s+${this._escapeRegex(tera)}\\b`);
-            if (teraRegex.test(contextText)) {
-                 // Check if this tera type was already consumed by a general mention search
-                 const teraEntityStart = searchStart + contextText.search(teraRegex);
-                 const teraEntityEnd = teraEntityStart + `tera ${tera}`.length;
+             // Look for " tera [type]" or " [type] tera" immediately after pokemon name (allow whitespace)
+            const teraRegex = new RegExp(`^\\s*(?:tera\\s+${this._escapeRegex(tera)}|${this._escapeRegex(tera)}\\s+tera)\\b`, 'i');
+            const match = contextText.match(teraRegex);
+            if (match) {
+                 // Find the start/end within the original string for consumption check
+                 const teraEntityStart = searchStart + match.index + match[0].indexOf(tera);
+                 const teraEntityEnd = teraEntityStart + tera.length;
+
+                 // Check if this specific tera mention was already consumed by a general search or another context
                  if (!this._isConsumed(teraEntityStart, teraEntityEnd, consumedIndices)) {
                      parsed.pokemon_with_tera.push({ pokemon: originalCasePokemon, tera_type: tera });
-                      // Consume this specific "tera [type]" phrase part
-                      for (let i = teraEntityStart; i < teraEntityEnd; i++) consumedIndices.add(i);
+                      // Consume the matched part (e.g., " tera steel") in the original string indices
+                      for (let i = searchStart + match.index; i < searchStart + match.index + match[0].length; i++) consumedIndices.add(i);
                       return; // Assume only one tera per pokemon context for simplicity
                  }
             }
         });
 
-        // 2. Check for "with", "holding", "running", "using" followed by items, abilities, moves
-        const withRegex = /\b(?:with|holding|running|using|ability|move)\b/g;
-        let withMatch;
-        let lastIndex = 0; // Start search within contextText
+        // 2. Check for "with", "holding", "running", "using", ability/move keywords followed by items, abilities, moves
+        // Regex to find keywords indicating a detail follows
+        const detailKeywordRegex = /\b(?:with|holding|running|using|ability|move)\b/gi;
+        let keywordMatch;
+        let lastIndexInContext = 0;
 
-        while ((withMatch = withRegex.exec(contextText)) !== null) {
-            const keyword = withMatch[0];
-            const afterKeywordIndex = withMatch.index + keyword.length;
-            // Extract text after the keyword until the next comma, "and", or end of context
-            const potentialDetailMatch = contextText.substring(afterKeywordIndex).match(/^[\s,]+([^\,]*?)(?:\s*,|\s+and\b|\s*\.)/); // Non-greedy match until separator
-             let detailText = potentialDetailMatch ? potentialDetailMatch[1].trim() : contextText.substring(afterKeywordIndex).trim().split(/\s*,|\s+and\b|\s*\./)[0]; // Fallback: take first part
+        while ((keywordMatch = detailKeywordRegex.exec(contextText)) !== null) {
+            const keyword = keywordMatch[0].toLowerCase();
+            const afterKeywordIndexInContext = keywordMatch.index + keyword.length;
+            // Extract text immediately following the keyword, looking for known entities
+            // This is complex; simplify by checking the next few words
+             const remainingContext = contextText.substring(afterKeywordIndexInContext).trimStart();
+            if (!remainingContext) continue; // Nothing follows the keyword
 
-             detailText = detailText.replace(/\.$/, '').trim(); // Clean trailing period
+            // Find potential items/abilities/moves starting right after the keyword
+            const potentialDetails = this._findAllPotentialEntities(remainingContext);
+            // Filter details that start near the beginning of the remaining context
+            const relevantDetails = potentialDetails.filter(d => d.start <= 5 && (d.type === 'item' || d.type === 'ability' || d.type === 'move'));
+             // Sort by start position, then length desc to prioritize longer matches first
+             relevantDetails.sort((a,b) => a.start - b.start || b.end - a.end);
 
-            if (detailText) {
-                let foundDetail = false;
-                const detailStart = searchStart + afterKeywordIndex + contextText.substring(afterKeywordIndex).search(/\S/); // Find actual start index in original string
-                const detailEnd = detailStart + detailText.length;
+            if (relevantDetails.length > 0) {
+                const detail = relevantDetails[0]; // Take the best match starting soon after keyword
+                const detailValue = detail.value; // lower case value
+                const detailType = detail.type; // item, ability, or move
 
-                 // Prioritize based on keyword or entity type
-                 if (keyword === 'ability' || DataService.isValidAbility(detailText)) {
-                     if (DataService.isValidAbility(detailText) && !this._isConsumed(detailStart, detailEnd, consumedIndices)) {
-                        parsed.pokemon_with_abilities.push({ pokemon: originalCasePokemon, ability: detailText });
-                        for (let i = detailStart; i < detailEnd; i++) consumedIndices.add(i);
-                        foundDetail = true;
+                const detailStartInOriginal = searchStart + afterKeywordIndexInContext + remainingContext.search(/\S/) + detail.start; // Adjust start index
+                const detailEndInOriginal = detailStartInOriginal + (detail.end - detail.start);
+
+                let added = false;
+                if (!this._isConsumed(detailStartInOriginal, detailEndInOriginal, consumedIndices)) {
+                     // Check if the detail type matches the keyword intent (or if keyword is generic like 'with')
+                     if (
+                         (keyword === 'ability' && detailType === 'ability') ||
+                         (keyword === 'item' && detailType === 'item') || // less common to say "item [itemname]"
+                         ((keyword === 'holding') && detailType === 'item') ||
+                         ((keyword === 'move' || keyword === 'running' || keyword === 'using') && detailType === 'move') ||
+                         (keyword === 'with') // 'with' can be any of them
+                     ) {
+                         switch (detailType) {
+                             case 'item':
+                                 parsed.pokemon_with_items.push({ pokemon: originalCasePokemon, item: detailValue });
+                                 added = true;
+                                 break;
+                             case 'ability':
+                                 parsed.pokemon_with_abilities.push({ pokemon: originalCasePokemon, ability: detailValue });
+                                 added = true;
+                                 break;
+                             case 'move':
+                                 parsed.pokemon_with_moves.push({ pokemon: originalCasePokemon, move: detailValue });
+                                 added = true; // Allow multiple moves after 'with' or 'running'
+                                 break;
+                         }
+
+                         if (added) {
+                             // Consume the keyword + the identified detail entity phrase
+                             const consumeStart = searchStart + keywordMatch.index;
+                             const consumeEnd = detailEndInOriginal; // Consume up to the end of the found detail
+                             for (let i = consumeStart; i < consumeEnd; i++) {
+                                 consumedIndices.add(i);
+                             }
+                             // If we added something, advance the search within the context
+                             // Update lastIndexInContext to avoid re-matching the same keyword immediately
+                             lastIndexInContext = afterKeywordIndexInContext + detail.end;
+                             detailKeywordRegex.lastIndex = lastIndexInContext; // Move regex pointer
+                         }
                     }
-                 }
-                 // Check item next (common with "holding", "with")
-                 else if ((keyword === 'holding' || keyword === 'with') && DataService.isValidItem(detailText)) {
-                     if (!this._isConsumed(detailStart, detailEnd, consumedIndices)) {
-                        parsed.pokemon_with_items.push({ pokemon: originalCasePokemon, item: detailText });
-                        for (let i = detailStart; i < detailEnd; i++) consumedIndices.add(i);
-                        foundDetail = true;
-                    }
-                 }
-                 // Check move
-                 else if ((keyword === 'move' || keyword === 'using' || keyword === 'running') && DataService.isValidMove(detailText)) {
-                     if (!this._isConsumed(detailStart, detailEnd, consumedIndices)) {
-                        parsed.pokemon_with_moves.push({ pokemon: originalCasePokemon, move: detailText });
-                        for (let i = detailStart; i < detailEnd; i++) consumedIndices.add(i);
-                        foundDetail = true; // Don't break, could list multiple moves
-                    }
-                 }
-                 // Fallback check if no specific keyword was used (just "with")
-                 else if (keyword === 'with') {
-                     if (DataService.isValidItem(detailText) && !this._isConsumed(detailStart, detailEnd, consumedIndices)) {
-                         parsed.pokemon_with_items.push({ pokemon: originalCasePokemon, item: detailText });
-                         for (let i = detailStart; i < detailEnd; i++) consumedIndices.add(i);
-                         foundDetail = true;
-                     } else if (DataService.isValidAbility(detailText) && !this._isConsumed(detailStart, detailEnd, consumedIndices)) {
-                         parsed.pokemon_with_abilities.push({ pokemon: originalCasePokemon, ability: detailText });
-                         for (let i = detailStart; i < detailEnd; i++) consumedIndices.add(i);
-                         foundDetail = true;
-                     } else if (DataService.isValidMove(detailText) && !this._isConsumed(detailStart, detailEnd, consumedIndices)) {
-                         parsed.pokemon_with_moves.push({ pokemon: originalCasePokemon, move: detailText });
-                         for (let i = detailStart; i < detailEnd; i++) consumedIndices.add(i);
-                         foundDetail = true;
-                     }
-                 }
+                }
             }
+
              // Prevent infinite loops if regex doesn't advance
-             if (withRegex.lastIndex === lastIndex) break;
-             lastIndex = withRegex.lastIndex;
+             if (detailKeywordRegex.lastIndex === (keywordMatch.index)) {
+                 detailKeywordRegex.lastIndex++; // Force advance if stuck
+             }
         }
     },
 
      _isConsumed(start, end, consumedIndices) {
+        // Check if *any* index within the range [start, end) is already consumed
         for (let i = start; i < end; i++) {
             if (consumedIndices.has(i)) {
                 return true;
@@ -577,6 +625,7 @@ const InstructionParser = {
     },
 
     _escapeRegex(str) {
+        // Escape characters with special meaning in regex
         return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     }
 };
@@ -639,16 +688,30 @@ const TeamMatcher = {
                  case 'move':
                       if (team.pokemons.some(p => p?.moves?.some(m => (typeof m === 'object' ? m.name : m)?.toLowerCase() === negation.value))) violated = true;
                       break;
-                 case 'type': // Check if any pokemon has this type
-                     if (team.pokemons.some(p => p?.types?.map(t => t.toLowerCase()).includes(negation.value))) violated = true;
+                 case 'type': // Check if any pokemon has this type OR tera type (common intent)
+                     if (team.pokemons.some(p =>
+                            p?.types?.map(t => t.toLowerCase()).includes(negation.value) ||
+                            p?.tera_type?.toLowerCase() === negation.value
+                         )) violated = true;
+                     break;
+                 case 'unknown': // If parser couldn't classify, check name against pokemon/item/ability/move
+                     const lowerNegValue = negation.value.toLowerCase();
+                     if (teamPokemonNamesLower.includes(lowerNegValue) ||
+                         team.pokemons.some(p => p?.item?.toLowerCase() === lowerNegValue) ||
+                         team.pokemons.some(p => p?.ability?.toLowerCase() === lowerNegValue) ||
+                         team.pokemons.some(p => p?.moves?.some(m => (typeof m === 'object' ? m.name : m)?.toLowerCase() === lowerNegValue)))
+                     {
+                        violated = true;
+                     }
                      break;
                  // Add other negation types if needed
              }
              if (violated) {
+                 /*console.log(`NEGATION VIOLATED: Team has excluded '${negation.value}' (Type: ${negation.type})`);*/
                  score += SCORE_WEIGHTS.NEGATIVE_CONSTRAINT_PENALTY;
                  // If a negation is violated, this team is not a match, return immediately.
                  // We don't need to report met positive criteria if a negative one fails.
-                 return { score, metCriteria: {} }; // Return empty metCriteria
+                 return { score, metCriteria: this._convertMetCriteriaSets(metCriteria) }; // Return empty metCriteria
              }
          }
 
@@ -712,7 +775,7 @@ const TeamMatcher = {
         // 4. General Item/Move/Ability/Tera Presence
         parsedInstruction.items.forEach(item => {
             if (team.pokemons.some(p => p?.item?.toLowerCase() === item)) {
-                score += SCORE_WEIGHTS.POKEMON_WITH_ITEM / 3;
+                score += SCORE_WEIGHTS.POKEMON_WITH_ITEM / 3; // Lower score for general presence
                 addCriterionMet('items', item);
             }
         });
@@ -730,23 +793,25 @@ const TeamMatcher = {
         });
          parsedInstruction.tera_types.forEach(tera => {
              if (team.pokemons.some(p => p?.tera_type?.toLowerCase() === tera)) {
-                 score += SCORE_WEIGHTS.POKEMON_WITH_TERA / 3;
+                 score += SCORE_WEIGHTS.POKEMON_WITH_TERA / 3; // Lower score for general presence
                  addCriterionMet('tera_types', tera);
              }
          });
 
         // 5. Type / Role / Archetype Matching
-        const checkRole = (p, role) => { /* ... (role checking logic remains same) ... */
+        const checkRole = (p, role) => {
              const stats = p?.stats;
              if (!stats) return false;
+             role = role.toLowerCase(); // Ensure role is lowercase for checks
              // Use includes for flexibility (e.g., "strong attacker" includes "attacker")
-             if ((role.includes("attack") || role.includes("physical")) && stats.attack >= 115) return true;
+             if ((role.includes("physical attacker") || role.includes("attacker")) && stats.attack >= 115) return true;
              if ((role.includes("special attack") || role.includes("special attacker")) && stats['special-attack'] >= 115) return true;
-             if ((role.includes("defen") || role.includes("physical defense")) && stats.defense >= 105) return true;
+             if ((role.includes("physical defense") || role.includes("defensive") || role.includes("defense")) && stats.defense >= 105) return true;
              if ((role.includes("special defense") || role.includes("specially defensive")) && stats['special-defense'] >= 105) return true;
-             if ((role.includes("speed") || role.includes("fast")) && stats.speed >= 105) return true;
+             if ((role.includes("speed") || role.includes("fast") || role.includes("speedy")) && stats.speed >= 105) return true;
              if ((role.includes("bulk") || role.includes("hp") || role.includes("health")) && stats.hp >= 100) return true;
              if (role.includes("wall") && (stats.defense >= 115 || stats['special-defense'] >= 115)) return true;
+             // Add more specific role checks if needed
              return false;
         };
 
@@ -771,16 +836,21 @@ const TeamMatcher = {
              }
          });
 
-        // Convert Sets back to arrays for easier processing later if needed, though Sets are fine
+        // TODO: Add Archetype scoring bonuses if ARCHETYPES are detected in parsedInstruction
+
+        return { score: Math.max(0, score), metCriteria: this._convertMetCriteriaSets(metCriteria) };
+    },
+
+    _convertMetCriteriaSets(metCriteriaSets) {
+        // Convert Sets back to arrays for easier processing later
         const finalMetCriteria = {};
-        for (const key in metCriteria) {
-            finalMetCriteria[key] = [...metCriteria[key]].map(item => {
+        for (const key in metCriteriaSets) {
+            finalMetCriteria[key] = [...metCriteriaSets[key]].map(item => {
                 try { return JSON.parse(item); } // Try parsing back objects
                 catch (e) { return item; } // Keep primitives as is
             });
         }
-
-        return { score: Math.max(0, score), metCriteria: finalMetCriteria };
+        return finalMetCriteria;
     }
 };
 
@@ -814,14 +884,19 @@ const Generator = {
          teams.forEach((team, index) => {
              try {
                  const { score, metCriteria: teamMetCriteria } = TeamMatcher.calculateMatchScore(parsedInstruction, team);
-                 // Only consider teams with positive scores for unmet criteria analysis
+
+                 // Check if a negative constraint was violated (score <= penalty indicates this)
+                 // TeamMatcher now returns score 0 if penalty is applied, so check < 0 or a very low value
+                  if (score <= SCORE_WEIGHTS.NEGATIVE_CONSTRAINT_PENALTY + 1) { // Allow for slight positive score before penalty
+                     // console.log(`Team ${index} (${team?.filename}) excluded due to negation violation.`);
+                      return; // Skip this team entirely
+                  }
+
+                 // Only consider teams with positive scores for unmet criteria analysis and results
                  if (score > 0) {
                      scoredTeams.push({ team, score, index });
                      // Aggregate met criteria from this positively scoring team
                      this._aggregateMetCriteria(overallMetCriteria, teamMetCriteria);
-                 } else if (score <= SCORE_WEIGHTS.NEGATIVE_CONSTRAINT_PENALTY) {
-                    // Optionally log teams heavily penalized by negations
-                    // console.log(`Team ${index} excluded due to negation violation.`);
                  }
              } catch (error) {
                  console.error(`Error matching team index ${index} (Filename: ${team?.filename || 'N/A'}):`, error);
@@ -829,25 +904,29 @@ const Generator = {
              }
          });
 
-        // 4. Filter out teams with non-positive scores and sort
-        // (Already filtered during scoring loop)
+        // 4. Sort scored teams
         scoredTeams.sort((a, b) => b.score - a.score); // Highest score first
 
         // 5. Determine "no detection" and select best teams
         const maxScore = scoredTeams.length > 0 ? scoredTeams[0].score : 0;
-        const noDetect = maxScore <= 0; // No teams scored positively
+        // No detection if no teams passed the negation checks AND scored positively
+        const noDetect = scoredTeams.length === 0;
 
-        // Select teams (e.g., all with the highest score, or top N)
+        // Select teams: Take all teams with the highest score
         const bestTeamsRaw = noDetect ? [] : scoredTeams.filter(st => st.score === maxScore);
-        // Fallback: if NO teams had positive score, maybe show *something*?
-        // For now, we return empty if noDetect is true.
+        // If we have multiple high-scorers, maybe limit to top N? For now, show all tied for first.
+        // const topN = 10;
+        // const bestTeamsRaw = noDetect ? [] : scoredTeams.slice(0, topN);
 
-        // 6. Identify Unmet Criteria
-        const unmetCriteriaList = noDetect ? [] : this._getUnmetCriteria(parsedInstruction, overallMetCriteria);
+
+        // 6. Identify Unmet Criteria based on *all* positively scoring teams found
+        const unmetCriteriaList = this._getUnmetCriteria(parsedInstruction, overallMetCriteria);
 
         // 7. Format the output
         const simplifiedTeams = bestTeamsRaw.map(st => this._simplifyTeamData(st.team));
 
+        // If no teams were found AT ALL (even violating ones), the initial message is fine.
+        // If teams were found but filtered by negations/low score, the unmet criteria list explains why.
         return [simplifiedTeams, noDetect, unmetCriteriaList, null]; // [teams, noDetect, unmetCriteria, errorMessage]
     },
 
@@ -868,6 +947,7 @@ const Generator = {
              roles: new Set(),
              size_requests: new Set(),    // Will store stringified {type, count}
              weight_requests: new Set(), // Will store stringified {type, count}
+             // negations are handled separately
          };
      },
 
@@ -883,20 +963,27 @@ const Generator = {
          }
      },
 
-      _getUnmetCriteria(parsed, overallMet) {
+      _getUnmetCriteria(parsed, overallMetSets) {
          const unmet = [];
 
-         const checkCategory = (category, items, stringifier) => {
-             items.forEach(item => {
+         // Helper to check a category
+         const checkCategory = (category, requestedItems, stringifier) => {
+             if (!requestedItems || requestedItems.length === 0) return; // Skip if nothing was requested in this category
+
+             const metSet = overallMetSets[category]; // The Set of met items (or stringified objects)
+
+             requestedItems.forEach(item => {
                  const key = stringifier(item);
-                 if (!overallMet[category]?.has(key)) {
+                 if (!metSet?.has(key)) {
+                     // Only add if *no* positively scoring team met this specific criterion
                      unmet.push(this._getCriterionString(category, item));
                  }
              });
          };
 
          // Check each category from the parsed instruction
-         checkCategory('pokemon', parsed.pokemon, p => p); // Pokemon name (original case) is the key
+         // Need to use the Set versions (overallMetSets) for the check
+         checkCategory('pokemon', parsed.pokemon, p => p);
          checkCategory('pokemon_with_items', parsed.pokemon_with_items, JSON.stringify);
          checkCategory('pokemon_with_tera', parsed.pokemon_with_tera, JSON.stringify);
          checkCategory('pokemon_with_abilities', parsed.pokemon_with_abilities, JSON.stringify);
@@ -911,63 +998,78 @@ const Generator = {
          checkCategory('size_requests', parsed.size_requests, JSON.stringify);
          checkCategory('weight_requests', parsed.weight_requests, JSON.stringify);
 
-         return unmet;
+         // Return unique unmet criteria strings
+         return [...new Set(unmet)];
      },
 
      _getCriterionString(category, value) {
          // Creates a user-friendly string for an unmet criterion
          try {
              switch (category) {
-                 case 'pokemon': return `Pokémon "${value}"`;
-                 case 'pokemon_with_items': return `There is no team with a "${value.pokemon}" with a "${value.item}"`;
-                 case 'pokemon_with_tera': return `There is no team with a "${value.pokemon}" with a "${value.tera_type}" Tera Type`;
-                 case 'pokemon_with_abilities': return `There is no team with a "${value.pokemon}" with "${value.ability}"`;
-                 case 'pokemon_with_moves': return `There is no team with a "${value.pokemon}" with "${value.move}"`;
-                 case 'items': return `There is no teams with a "${value}"`;
-                 case 'moves': return `There is no teams with "${value}"`;
-                 case 'abilities': return `There is no teams with "${value}"`;
-                 case 'tera_types': return `There is no teams with a "${value}" Tera Type`;
-                 case 'types_with_roles': return `There is no teams with a Type "${value.role}" "${value.type}" type`;
-                 case 'types': return `There is no teams with a "${value}" type`;
-                 case 'roles': return `There is no teams with a "${value}"`;
-                 case 'size_requests': return `There is no teams with ${value.count} ${value.type} Pokémon`;
-                 case 'weight_requests': return `There is no teams with ${value.count} ${value.type} Pokémon`;
+                 case 'pokemon': return `Pokémon: <code>${value}</code>`;
+                 case 'pokemon_with_items': return `Pokémon/Item: <code>${value.pokemon}</code> with <code>${value.item}</code>`;
+                 case 'pokemon_with_tera': return `Pokémon/Tera: <code>${value.pokemon}</code> Tera <code>${value.tera_type}</code>`;
+                 case 'pokemon_with_abilities': return `Pokémon/Ability: <code>${value.pokemon}</code> with <code>${value.ability}</code>`;
+                 case 'pokemon_with_moves': return `Pokémon/Move: <code>${value.pokemon}</code> with <code>${value.move}</code>`;
+                 case 'items': return `Item: <code>${value}</code>`;
+                 case 'moves': return `Move: <code>${value}</code>`;
+                 case 'abilities': return `Ability: <code>${value}</code>`;
+                 case 'tera_types': return `Tera Type: <code>${value}</code>`;
+                 case 'types_with_roles': return `Type/Role: <code>${value.role} ${value.type}</code>`;
+                 case 'types': return `Type: <code>${value}</code>`;
+                 case 'roles': return `Role: <code>${value}</code>`;
+                 case 'size_requests': return `Size: <code>${value.count} ${value.type} Pokémon</code>`;
+                 case 'weight_requests': return `Weight: <code>${value.count} ${value.type} Pokémon</code>`;
                  default: return JSON.stringify(value); // Fallback
              }
          } catch (e) {
+             console.error("Error generating criterion string for:", category, value, e);
              return "an unspecified criterion"; // Error fallback
          }
      },
 
 
     _simplifyTeamData(team) {
-        // Similar to original, but ensure robustness
+        // Ensure robustness against potentially missing data
         return {
-            filename: team.filename || "unknown_filename",
-            pokemons: (team.pokemons || []).map(p => {
+            filename: team?.filename || "unknown_filename",
+            pokemons: (team?.pokemons || []).map(p => {
                 if (!p || !p.name) return null; // Skip invalid pokemon entries
 
                 const moves = Array.isArray(p.moves) ? p.moves : [];
 
+                // Clean up move data - ensure name and type exist
+                const processedMoves = moves.slice(0, 4).map(m => {
+                    let name = null;
+                    let type = 'unknown';
+                    if (typeof m === 'object' && m?.name) {
+                        name = m.name;
+                        type = m.type?.toLowerCase() || 'unknown';
+                    } else if (typeof m === 'string' && m !== '-') {
+                        name = m;
+                        // Attempt to find move type from DataService if missing (optional enhancement)
+                         // const moveData = DataService.getMoveDetails(name); // Requires getMoveDetails function
+                         // type = moveData?.type || 'unknown';
+                    }
+                    // Return null if no valid name was found or if it's just a placeholder
+                    return (name && name !== '-') ? { name, type } : null;
+                }).filter(Boolean); // Remove nulls
+
+                // Ensure Tera Type is valid or null
+                 const teraType = p.tera_type && TERA_TYPES.includes(p.tera_type.toLowerCase()) ? p.tera_type : null;
+
                 return {
                     name: p.name, // Keep original case
                     ability: p.ability || null,
-                    item: p.item || null,
-                    moves: moves.slice(0, 4).map(m => {
-                        if (typeof m === 'object' && m?.name) {
-                            return { name: m.name, type: m.type || 'unknown' };
-                        } else if (typeof m === 'string') {
-                            return { name: m, type: 'unknown' }; // Assume unknown type if only name is present
-                        }
-                        return null; // Skip invalid move formats
-                    }).filter(Boolean), // Remove nulls
-                    tera_type: p.tera_type || null,
-                    sprite: p.sprites?.front_default || null // Use default sprite
-                    // Optionally include stats if needed for display:
-                    // stats: p.stats || null,
-                    // types: p.types || [],
-                    // height: p.height,
-                    // weight: p.weight,
+                    item: p.item || null, // Already expected to be string or null
+                    moves: processedMoves, // Use the cleaned-up moves array
+                    tera_type: teraType,
+                    sprite: p.sprites?.front_default || null, // Use default sprite
+                     // Add back height/weight if needed for display or size/weight criteria checking elsewhere
+                     height: p.height,
+                     weight: p.weight,
+                     types: p.types || [],
+                     stats: p.stats || {},
                 };
             }).filter(Boolean) // Filter out any null pokemon results
         };
