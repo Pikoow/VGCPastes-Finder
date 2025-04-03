@@ -100,7 +100,7 @@ function findClosestPokemonName(inputWord) {
     }
 
     let closestMatch = null;
-    let minDistance = 3; // Maximum allowed distance for a suggestion (adjust as needed)
+    let minDistance = 4; // Maximum allowed distance for a suggestion (adjust as needed)
 
     for (const name of pokemonNamesArray) {
         if (!name) continue; // Skip null/undefined names
@@ -184,6 +184,10 @@ const searchText = document.getElementById("search-text");
 const loadingSpinner = document.getElementById("loading-spinner");
 const initialMessage = document.getElementById("initial-message"); // Get initial message element
 
+// --- State Variables for Current Search ---
+let currentSearchResults = []; // Stores the full list of teams from the last search
+let currentMainTeamIndex = -1; // Stores the index of the team currently in the main display
+
 // Function to trigger the search process
 async function triggerSearch() {
     const instruction = instructionInput.value.trim();
@@ -201,6 +205,8 @@ async function triggerSearch() {
     otherTeamsTitle.classList.add('hidden');
     otherTeamsList.innerHTML = '';
     document.getElementById("did-you-mean").classList.add("hidden"); // Hide suggestion
+    currentSearchResults = []; // Reset search results
+    currentMainTeamIndex = -1; // Reset main team index
 
     // Simulate network delay/processing time (optional)
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -217,33 +223,32 @@ async function triggerSearch() {
             otherTeamsContainer.classList.add('hidden'); // Hide other teams section
 
         } else {
-             // We have at least one team (either matched or random)
-             const mainTeam = teams[0];
+             // We have at least one team
+             currentSearchResults = teams; // Store the full results
+             currentMainTeamIndex = 0; // Initially display the first team
+
+             const mainTeam = currentSearchResults[currentMainTeamIndex];
 
              // Update main team title and display
-             teamTitle.textContent = mainTeam.filename.split('.')[0].replace(/_/g, ' '); // Clean up filename
-             displayTeam(mainTeam, teamContainer); // Display the main team
-             copyAllBtn.classList.remove('hidden'); // Show copy button
-             copyAllBtn.onclick = () => copyTeamToClipboard(mainTeam); // Setup copy button
+             updateMainTeamDisplay(mainTeam);
 
              // Handle "other" teams (if more than one team was returned)
-             if (teams.length > 1) {
-                 otherTeamsContainer.classList.remove('hidden');
-                 const otherCount = teams.length - 1;
-                 otherTeamsTitle.textContent = `${otherCount} other potential match${otherCount > 1 ? 'es' : ''} (sorted by relevance):`;
-                 otherTeamsTitle.classList.remove('hidden');
-                 displayOtherTeams(teams.slice(1), otherTeamsList); // Display previews
+             if (currentSearchResults.length > 1) {
+                 updateOtherTeamsDisplay(); // Display previews for others
              } else {
-                  otherTeamsContainer.classList.add('hidden'); // Hide if only one team
+                  otherTeamsContainer.classList.add('hidden'); // Hide if only one team total
              }
 
              // Adjust message if the main result was random due to no detection
              if (noDetect && mainTeam) {
                  otherTeamsContainer.classList.remove('hidden'); // Show the container
-                 otherTeamsTitle.textContent = `No strong matches found (max score: ${mainTeam.score}). Showing a relevant/random team:`;
+                 const count = currentSearchResults.length - 1;
+                 otherTeamsTitle.textContent = `No strong matches found. Showing a relevant team${count > 0 ? ' and potential alternatives:' : '.'}`;
                  otherTeamsTitle.classList.remove('hidden');
-                 otherTeamsList.innerHTML = ''; // Clear other teams list if main is random
-                 // Keep the main team displayed as the random one
+                 if (count === 0) {
+                    otherTeamsList.innerHTML = ''; // No others to show if only one random result
+                 }
+                 // The main team is already displayed
              }
         }
 
@@ -252,7 +257,9 @@ async function triggerSearch() {
         teamTitle.textContent = 'Error';
         teamContainer.innerHTML = `<div class="p-4 text-center text-red-500 dark:text-red-400 text-sm">Sorry, something went wrong during the search. Please try again later.<br><span class="text-xs">${error.message}</span></div>`;
         copyAllBtn.classList.add('hidden');
-         otherTeamsContainer.classList.add('hidden');
+        otherTeamsContainer.classList.add('hidden');
+        currentSearchResults = [];
+        currentMainTeamIndex = -1;
     } finally {
         // --- UI Updates: End Loading ---
         searchText.textContent = "Search";
@@ -275,8 +282,80 @@ instructionInput.addEventListener("keypress", function(event) {
 
 // --- Display Functions ---
 
-// Function to display the main team in a table/grid format
-function displayTeam(team, container) {
+// Function to update the main team display area
+function updateMainTeamDisplay(team) {
+    if (!team) return;
+    teamTitle.textContent = team.filename.split('.')[0].replace(/_/g, ' ');
+    displayTeamInGrid(team, teamContainer); // Use the grid display function
+    copyAllBtn.classList.remove('hidden');
+    copyAllBtn.onclick = () => copyTeamToClipboard(team);
+}
+
+// Function to update the "Other Teams" preview section
+function updateOtherTeamsDisplay() {
+    otherTeamsList.innerHTML = ''; // Clear previous list
+
+    // Filter out the current main team and create previews for the rest
+    const otherTeams = currentSearchResults.filter((_, index) => index !== currentMainTeamIndex);
+
+    if (otherTeams.length > 0) {
+        otherTeamsContainer.classList.remove('hidden');
+        otherTeamsTitle.textContent = `${otherTeams.length} other potential match${otherTeams.length > 1 ? 'es' : ''}:`;
+        otherTeamsTitle.classList.remove('hidden');
+
+        currentSearchResults.forEach((team, index) => {
+            // Only create previews for teams NOT currently in the main display
+            if (index === currentMainTeamIndex) return;
+
+            const teamPreview = document.createElement('div');
+            teamPreview.className = 'other-team-preview border p-1.5 rounded-sm cursor-pointer';
+            teamPreview.title = `Click to view: ${team.filename.split('.')[0].replace(/_/g, ' ')}`;
+            teamPreview.dataset.teamIndex = index; // Store the original index
+
+            const teamName = document.createElement('div');
+            teamName.className = 'text-xs font-semibold truncate mb-1 team-name-preview';
+            teamName.textContent = team.filename.split('.')[0].replace(/_/g, ' ');
+            teamPreview.appendChild(teamName);
+
+            const spriteContainer = document.createElement('div');
+            spriteContainer.className = 'flex flex-wrap gap-1 justify-center';
+            team.pokemons.slice(0, 6).forEach(pokemon => { // Show max 6 sprites
+                const img = document.createElement('img');
+                img.src = pokemon.sprite || 'static/assets/pokeball_icon.png';
+                img.alt = pokemon.name || '';
+                img.className = 'w-5 h-5';
+                img.onerror = () => { img.src = 'static/assets/pokeball_icon.png'; }; // Fallback sprite
+                spriteContainer.appendChild(img);
+            });
+            teamPreview.appendChild(spriteContainer);
+
+            // --- Click Listener for Swapping Teams ---
+            teamPreview.addEventListener('click', () => {
+                const clickedIndex = parseInt(teamPreview.dataset.teamIndex, 10);
+
+                // Update the main display with the clicked team
+                currentMainTeamIndex = clickedIndex;
+                updateMainTeamDisplay(currentSearchResults[currentMainTeamIndex]);
+
+                // Re-render the "Other Teams" section to reflect the change
+                updateOtherTeamsDisplay();
+
+                // Optional: Scroll to the top of the sheet container
+                teamSheetContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+
+            otherTeamsList.appendChild(teamPreview);
+        });
+    } else {
+        // Hide the "Other Teams" section if no others exist (e.g., only 1 result total)
+        otherTeamsContainer.classList.add('hidden');
+        otherTeamsTitle.classList.add('hidden');
+    }
+}
+
+
+// Renamed function to clarify its purpose (was displayTeam)
+function displayTeamInGrid(team, container) {
     container.innerHTML = ''; // Clear previous content
 
     if (!team || !team.pokemons || team.pokemons.length === 0) {
@@ -286,8 +365,7 @@ function displayTeam(team, container) {
 
     // 1. Create Header Row
     const headerRow = document.createElement('div');
-    // Use the specific sticky header class from CSS
-    headerRow.className = 'excel-row header-row'; // Rely on CSS for sticky, bg, etc.
+    headerRow.className = 'excel-row header-row';
     headerRow.innerHTML = `
         <div class="excel-cell font-semibold">Sprite</div>
         <div class="excel-cell font-semibold">Pokémon</div>
@@ -304,35 +382,43 @@ function displayTeam(team, container) {
     // 2. Create Data Rows for each Pokémon
     team.pokemons.forEach((pokemon, index) => {
         const row = document.createElement('div');
-        // Apply alternating row classes dynamically (works better with dark mode overrides)
-        const altClass = index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:dark-row-alt'; // Use custom dark alt
+        const altClass = index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:dark-row-alt';
         row.className = `excel-row ${altClass}`;
 
         const itemName = pokemon.item && pokemon.item !== "None" ? pokemon.item : null;
         const itemSpriteUrl = itemName
             ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${itemName.toLowerCase().replace(/ /g, '-')}.png`
-            : null; // Generate URL only if item exists
+            : null;
 
         const teraType = pokemon.tera_type && pokemon.tera_type !== "None" ? pokemon.tera_type : "None";
         const teraClass = teraType !== "None" ? `type-${teraType.toLowerCase()}` : 'type-none';
 
-        // Ensure moves array has 4 elements (pad with placeholders if necessary)
-        const moves = [...(pokemon.moves || [])]; // Handle case where moves might be undefined
+        const moves = [...(pokemon.moves || [])];
         while (moves.length < 4) {
             moves.push({ name: '-', type: 'unknown' });
         }
 
-        // Item cell HTML with robust fallback
         let itemCellHTML = `<span class="text-gray-400 dark:text-gray-500 italic text-xs">None</span>`;
         if (itemName) {
+            // Corrected fallback logic: The span should be visible *initially* and hidden by JS if the image loads.
+            // But CSS approach is simpler: Show span only if img has error.
             itemCellHTML = `
                 <img src="${itemSpriteUrl}" alt="${itemName}" class="w-4 h-4 mr-1 inline-block"
                      onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';"
                      title="${itemName}">
                 <span class="item-fallback-text" style="display:none;">${itemName}</span>
             `;
+             // If you suspect many items might fail loading, pre-render the text and hide image if it loads:
+             /*
+             itemCellHTML = `
+                 <img src="${itemSpriteUrl}" alt="" class="w-4 h-4 mr-1 inline-block" style="display:none;"
+                      onload="this.style.display='inline'; this.nextElementSibling.style.display='none';"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" <!-- Keep error handler -->
+                      title="${itemName}">
+                 <span class="item-fallback-text">${itemName}</span>
+             `;
+             */
         }
-
 
         row.innerHTML = `
             <div class="excel-cell cell-sprite">
@@ -344,7 +430,7 @@ function displayTeam(team, container) {
             <div class="excel-cell cell-tera">
                 ${teraType !== "None" ? `<span class="tera-badge-excel ${teraClass}">${teraType}</span>` : `<span class="text-gray-400 dark:text-gray-500 italic text-xs">None</span>`}
             </div>
-            ${moves.slice(0, 4).map(move => { // Ensure only 4 moves are processed
+            ${moves.slice(0, 4).map(move => {
                 const moveName = move?.name || '-';
                 const moveType = move?.type?.toLowerCase() || 'unknown';
                 return `
@@ -363,47 +449,6 @@ function displayTeam(team, container) {
 }
 
 
-// Function to display previews of other matching teams
-function displayOtherTeams(teams, listContainer) {
-    listContainer.innerHTML = ''; // Clear previous list
-    teams.forEach(team => {
-        const teamPreview = document.createElement('div');
-        teamPreview.className = 'other-team-preview border p-1.5 rounded-sm cursor-pointer'; // Rely on CSS for bg/border/hover
-        teamPreview.title = `Click to view: ${team.filename.split('.')[0].replace(/_/g, ' ')} (Score: ${team.score})`; // Tooltip
-
-        const teamName = document.createElement('div');
-        teamName.className = 'text-xs font-semibold truncate mb-1 team-name-preview'; // Rely on CSS for color
-        teamName.textContent = team.filename.split('.')[0].replace(/_/g, ' ');
-        teamPreview.appendChild(teamName);
-
-        const spriteContainer = document.createElement('div');
-        spriteContainer.className = 'flex flex-wrap gap-1 justify-center';
-        team.pokemons.slice(0, 6).forEach(pokemon => { // Show max 6 sprites
-            const img = document.createElement('img');
-            img.src = pokemon.sprite || 'static/assets/pokeball_icon.png';
-            img.alt = pokemon.name || '';
-            img.className = 'w-5 h-5';
-             img.onerror = () => { img.src = 'static/assets/pokeball_icon.png'; }; // Fallback sprite
-            spriteContainer.appendChild(img);
-        });
-        teamPreview.appendChild(spriteContainer);
-
-        // Add click listener to load this team as the main one
-        teamPreview.addEventListener('click', () => {
-            // Display this team in the main view
-            teamTitle.textContent = team.filename.split('.')[0].replace(/_/g, ' ');
-            displayTeam(team, teamContainer);
-            copyAllBtn.classList.remove('hidden');
-            copyAllBtn.onclick = () => copyTeamToClipboard(team);
-             // Optionally scroll to top
-             teamSheetContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-
-        listContainer.appendChild(teamPreview);
-    });
-}
-
-
 // --- Utility Functions ---
 
 // Function to copy the main team's Poképaste format to clipboard
@@ -411,56 +456,34 @@ function copyTeamToClipboard(team) {
     if (!team || !team.pokemons) return;
 
     const teamText = team.pokemons.map(pokemon => {
-         // Use fallbacks for potentially missing data
          const name = pokemon.name || "Unknown";
          const item = pokemon.item && pokemon.item !== "None" ? pokemon.item : "";
          const ability = pokemon.ability || "Unknown";
          const tera = pokemon.tera_type && pokemon.tera_type !== "None" ? `Tera Type: ${pokemon.tera_type}` : "";
-
-         // Format moves: filter out placeholders, ensure they are strings
          const moves = (pokemon.moves || [])
              .map(m => (m && m.name && m.name !== '-') ? `- ${m.name}` : null)
-             .filter(m => m !== null) // Remove null/placeholder entries
+             .filter(m => m !== null)
              .join("\n");
 
-        // Construct the string for one Pokémon
         let pokemonString = `${name}${item ? ` @ ${item}` : ''}\n`;
         pokemonString += `Ability: ${ability}\n`;
         if (tera) pokemonString += `${tera}\n`;
-        // Add placeholders for missing data if needed (EVs, IVs, Nature)
-        // pokemonString += `EVs: ... \n`;
-        // pokemonString += `Nature: ... \n`;
-        if (moves) pokemonString += `${moves}`; // Add moves if they exist
+        if (moves) pokemonString += `${moves}`;
 
-        return pokemonString.trim(); // Trim whitespace from each Pokémon block
-    }).join("\n\n"); // Join Pokémon blocks with double newline
+        return pokemonString.trim();
+    }).join("\n\n");
 
     navigator.clipboard.writeText(teamText).then(() => {
-        // Show confirmation message using the 'visible' class
         const message = document.getElementById("global-copy-message");
         message.classList.add("visible");
-        message.classList.remove("hidden"); // Ensure hidden isn't interfering
+        message.classList.remove("hidden");
 
-        // Hide the message after a delay
         setTimeout(() => {
              message.classList.remove("visible");
-             // Optionally add hidden back after transition ends if needed, but opacity/pointer-events should handle it
-             // setTimeout(() => message.classList.add("hidden"), 300);
-        }, 2000); // Display duration: 2 seconds
+        }, 2000);
 
     }).catch(err => {
         console.error('Failed to copy team:', err);
-        alert("Failed to copy team to clipboard. Check browser permissions."); // Simple fallback alert
+        alert("Failed to copy team to clipboard. Check browser permissions.");
     });
 }
-
-// Helper function to shuffle an array (unused currently, keep if needed)
-/*
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-}
-*/
