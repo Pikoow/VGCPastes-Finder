@@ -53,6 +53,9 @@ const IGNORED_WORDS = new Set([
 
 // Levenshtein distance function for string similarity
 function levenshteinDistance(a, b) {
+    a = a.trim().toLowerCase();
+    b = b.trim().toLowerCase();
+
     if (a.length === 0) return b.length;
     if (b.length === 0) return a.length;
 
@@ -67,8 +70,8 @@ function levenshteinDistance(a, b) {
         for (let j = 1; j <= b.length; j++) {
             const cost = a[i - 1] === b[j - 1] ? 0 : 1;
             matrix[i][j] = Math.min(
-                matrix[i - 1][j] + 1,      // Deletion
-                matrix[i][j - 1] + 1,      // Insertion
+                matrix[i - 1][j] + 1,       // Deletion
+                matrix[i][j - 1] + 1,       // Insertion
                 matrix[i - 1][j - 1] + cost // Substitution
             );
         }
@@ -78,15 +81,13 @@ function levenshteinDistance(a, b) {
 
 
 // Function to find the closest Pokémon name match for a given input word
-function findClosestPokemonName(inputWord) {
-    const inputLower = inputWord.toLowerCase();
+function findClosestPokemonName(inputPhrase) {
+    const inputLower = inputPhrase.trim().toLowerCase();
 
-    // Basic checks: ignore empty, short, long, or common words
-    if (!inputLower || inputLower.length < 3 || inputLower.length > 20 || IGNORED_WORDS.has(inputLower)) {
+    if (!inputLower || inputLower.length < 2 || inputLower.length > 30 || IGNORED_WORDS.has(inputLower)) {
         return null;
     }
 
-    // Ensure pokemonNames list is available and populated
     if (!window.pokemonNames || window.pokemonNames.size === 0) {
         console.warn("Pokémon names list not available for suggestions.");
         return null;
@@ -94,18 +95,17 @@ function findClosestPokemonName(inputWord) {
 
     const pokemonNamesArray = [...window.pokemonNames];
 
-    // Exact match check (case-insensitive) - if exact match, no suggestion needed
     if (pokemonNamesArray.includes(inputLower)) {
         return null;
     }
 
     let closestMatch = null;
-    let minDistance = 4; // Maximum allowed distance for a suggestion (adjust as needed)
+    let minDistance = 3;
 
     for (const name of pokemonNamesArray) {
-        if (!name) continue; // Skip null/undefined names
-        // Optimization: skip if lengths differ too much
-        if (Math.abs(name.length - inputLower.length) > minDistance) {
+        if (!name) continue;
+
+        if (Math.abs(name.length - inputLower.length) > minDistance + 1) {
             continue;
         }
 
@@ -114,16 +114,16 @@ function findClosestPokemonName(inputWord) {
         if (distance < minDistance) {
             minDistance = distance;
             closestMatch = name;
-        } else if (distance === minDistance) {
-            // Prefer shorter names if distances are equal? Or keep first found?
-            // Keeping the first found for simplicity.
         }
     }
 
-    // Return the *original case* version of the closest match
     if (closestMatch) {
-        // Find the original casing from the data if possible (more reliable)
-        const originalCaseName = data?.flatMap(t => t.pokemons).find(p => p.name?.toLowerCase() === closestMatch)?.name || closestMatch;
+        const foundPokemon = typeof data !== 'undefined' && data?.flatMap(t => t.pokemons).find(p => p?.name?.toLowerCase() === closestMatch);
+        const originalCaseName = foundPokemon?.name || closestMatch; // Fallback to closestMatch if not found in data (should be rare)
+
+        if (originalCaseName.toLowerCase() === inputPhrase.trim().toLowerCase()) {
+            return null;
+        }
         return originalCaseName;
     }
 
@@ -133,33 +133,83 @@ function findClosestPokemonName(inputWord) {
 // Event listener for the instruction input field to trigger suggestions
 document.getElementById("instruction").addEventListener("input", function() {
     const inputText = this.value;
+    const cursorPosition = this.selectionStart; // Get cursor position
     const didYouMeanDiv = document.getElementById("did-you-mean");
     const suggestionLink = document.getElementById("suggestion-link");
 
-    // Simple approach: check the last word typed
-    const words = inputText.trim().split(/[\s-]+/); // Split by space or hyphen
-    const lastWord = words[words.length - 1];
+    let start = inputText.lastIndexOf(' ', cursorPosition - 1) + 1;
+    let end = inputText.indexOf(' ', cursorPosition);
+    if (end === -1) {
+        end = inputText.length;
+    }
 
-    let suggestion = null;
-    let suggestedPokemon = findClosestPokemonName(lastWord);
+    // Extract the current phrase based on spaces
+    const currentPhraseSpaced = inputText.substring(start, end).trim();
 
-    if (suggestedPokemon && suggestedPokemon.toLowerCase() !== lastWord.toLowerCase()) {
-        // Construct the suggested text by replacing the last word
-        // Find the index of the last word to replace it correctly, handling hyphens
-        const lastWordIndex = inputText.lastIndexOf(lastWord);
-        if (lastWordIndex !== -1) {
-            suggestion = inputText.substring(0, lastWordIndex) + suggestedPokemon;
+    // --- Attempt to detect hyphenated names being typed ---
+    // Check if the character before the start is a hyphen, and if the word before that might be part of a name
+    let potentialHyphenatedPhrase = currentPhraseSpaced;
+    if (start > 0 && inputText[start - 1] === '-' && start > 1) {
+        let prevWordStart = inputText.lastIndexOf(' ', start - 2) + 1;
+        let potentialFirstPart = inputText.substring(prevWordStart, start - 1).trim();
+        // Avoid combining ignored words like "strike" if the first part is ignored
+        if (!IGNORED_WORDS.has(potentialFirstPart.toLowerCase())) {
+           potentialHyphenatedPhrase = potentialFirstPart + "-" + currentPhraseSpaced;
+           // Update start position for replacement later
+           start = prevWordStart;
         }
     }
 
+    let phraseToSuggestFor = potentialHyphenatedPhrase; // Default to potentially hyphenated
+    let suggestedPokemon = findClosestPokemonName(phraseToSuggestFor);
+
+    // If no suggestion for hyphenated, try just the part after the space/hyphen
+    if (!suggestedPokemon && potentialHyphenatedPhrase !== currentPhraseSpaced) {
+        phraseToSuggestFor = currentPhraseSpaced; // Fallback to space-separated part
+        // Recalculate start position if we fell back
+        start = inputText.lastIndexOf(' ', cursorPosition - 1) + 1;
+        suggestedPokemon = findClosestPokemonName(phraseToSuggestFor);
+    }
+
+    // --- Construct suggested text and display ---
+    let suggestionText = null;
+    if (suggestedPokemon && suggestedPokemon.toLowerCase() !== phraseToSuggestFor.toLowerCase()) {
+        // Replace the identified phrase (phraseToSuggestFor) with the suggestion
+        suggestionText = inputText.substring(0, start) + suggestedPokemon + inputText.substring(end);
+    }
+
+
     // Show or hide the suggestion link
-    if (suggestion && suggestion.toLowerCase() !== inputText.trim().toLowerCase()) {
-        suggestionLink.textContent = `"${suggestion}"`;
+    if (suggestionText && suggestionText.toLowerCase() !== inputText.trim().toLowerCase()) {
+        suggestionLink.textContent = `"${suggestionText}"`;
         suggestionLink.onclick = (e) => {
             e.preventDefault();
-            document.getElementById("instruction").value = suggestion + " "; // Add space after suggestion
+            const currentInput = document.getElementById("instruction");
+            const currentCursorPos = currentInput.selectionStart;
+            const originalLength = inputText.length;
+
+            currentInput.value = suggestionText + " "; // Add space after suggestion
             didYouMeanDiv.classList.add("hidden"); // Hide after clicking
-            document.getElementById("instruction").focus(); // Refocus input
+
+            // Try to restore cursor position intelligently
+            const newLength = suggestionText.length;
+            const diff = newLength - (end - start); // Length difference of the replaced part
+            let newCursorPos = end + diff + 1; // Place cursor after the replaced word + space
+
+            // Adjust if original cursor was within the replaced word
+             if (currentCursorPos >= start && currentCursorPos <= end) {
+                 newCursorPos = start + suggestedPokemon.length + 1; // Place cursor after the inserted suggestion + space
+             } else if (currentCursorPos > end) {
+                 newCursorPos = currentCursorPos + diff + 1; // Adjust position if cursor was after replaced word
+             } else { // Cursor was before the change
+                 newCursorPos = currentCursorPos; // Keep original position (usually start)
+             }
+             // Ensure cursor is within bounds
+             newCursorPos = Math.max(0, Math.min(newCursorPos, currentInput.value.length));
+
+            currentInput.focus();
+            currentInput.setSelectionRange(newCursorPos, newCursorPos);
+
             // Optionally trigger search immediately: triggerSearch();
         };
         didYouMeanDiv.classList.remove("hidden");
