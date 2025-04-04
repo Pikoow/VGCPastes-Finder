@@ -2,7 +2,7 @@
 const DATA_URL = 'https://pikoow.github.io/VGCPastes-Finder/data/processed_data.json';
 const SHOWDOWN_ITEMS_URL = "https://play.pokemonshowdown.com/data/items.js";
 const SHOWDOWN_MOVES_URL = "https://play.pokemonshowdown.com/data/moves.js";
-const SHOWDOWN_ABILITIES_URL = "https://play.pokemonshowdown.com/data/abilities.js"; // Added for more complete ability list
+const SHOWDOWN_ABILITIES_URL = "https://play.pokemonshowdown.com/data/abilities.js";
 
 // Size/Weight Thresholds (Decimetres for height, Hectograms for weight)
 const SMALL_THRESHOLD_H = 5;   // <= 0.5m
@@ -24,8 +24,8 @@ const SCORE_WEIGHTS = {
     TYPE_ROLE_MATCH: 30,
     GENERAL_TYPE: 10,
     GENERAL_ROLE: 15,
-    ARCHETYPE_HINT: 60, // Bonus for matching known archetypes/cores
-    NEGATIVE_CONSTRAINT_PENALTY: -500 // Heavy penalty if a "without" constraint is violated
+    ARCHETYPE_HINT: 60,
+    NEGATIVE_CONSTRAINT_PENALTY: -500
 };
 
 // Common Tera Types (Used for parsing and validation)
@@ -342,7 +342,7 @@ const InstructionParser = {
         };
     },
 
-     _findAllPotentialEntities(lowerInstruction) {
+    _findAllPotentialEntities(lowerInstruction) {
         const entities = [];
         const instructionLength = lowerInstruction.length;
 
@@ -390,72 +390,72 @@ const InstructionParser = {
             });
         });
 
-         // --- Priority 3: Specific Keywords (Tera, Size, Weight, Roles, Without, Archetypes) ---
-         // Tera Types (often follows Pokémon name or "tera")
-         TERA_TYPES.forEach(tera => {
-             // Match "tera [type]" or "[type] tera"
-             const regex = new RegExp(`\\b(?:tera\\s+${this._escapeRegex(tera)}|${this._escapeRegex(tera)}\\s+tera)\\b`, 'gi');
-             let match;
-             while ((match = regex.exec(lowerInstruction)) !== null) {
-                 // Find the actual position of the tera type word itself within the match
-                 const typeIndex = match[0].indexOf(tera);
-                 if(typeIndex !== -1) {
-                    entities.push({ type: 'tera', value: tera, start: match.index + typeIndex, end: match.index + typeIndex + tera.length });
-                 }
-             }
-             // Direct association like "pokemon tera [type]" is handled in _parsePokemonContext
-         });
+        // --- Priority 3: Specific Keywords (Tera, Size, Weight, Roles, Without, Archetypes) ---
+        // Tera Types (often follows Pokémon name or "tera")
+        TERA_TYPES.forEach(tera => {
+            // Match "tera [type]" or "[type] tera"
+            const regex = new RegExp(`\\b(?:tera\\s+${this._escapeRegex(tera)}|${this._escapeRegex(tera)}\\s+tera)\\b`, 'gi');
+            let match;
+            while ((match = regex.exec(lowerInstruction)) !== null) {
+                // Find the actual position of the tera type word itself within the match
+                const typeIndex = match[0].indexOf(tera);
+                if(typeIndex !== -1) {
+                   entities.push({ type: 'tera', value: tera, start: match.index + typeIndex, end: match.index + typeIndex + tera.length });
+                }
+            }
+            // Direct association like "pokemon tera [type]" is handled in _parsePokemonContext
+        });
 
-         // Size/Weight Requests
-         const sizeWeightRegex = /(\d+)\s+(small|tall|light|heavy)(?:\s+pokemon)?/gi;
-         let swMatch;
-         while ((swMatch = sizeWeightRegex.exec(lowerInstruction)) !== null) {
-             const count = parseInt(swMatch[1], 10);
-             const type = swMatch[2].toLowerCase(); // Ensure lowercase type
-             if (!isNaN(count) && count > 0) {
-                 const entityType = (type === 'small' || type === 'tall') ? 'size' : 'weight';
-                 entities.push({ type: entityType, value: { type, count }, start: swMatch.index, end: swMatch.index + swMatch[0].length });
-             }
-         }
-
-         // Roles (Keywords from Constants) - Needs implementation if roles beyond stats are needed
-
-
-         // Negations ("without", "no", "not including") - Handles multiple negations and multi-word items/moves
-        // Updated Regex to capture multi-word terms after negation and stop at next negation
-        const negationRegex = /\b(?:without|no|not including)\s+([a-z0-9]+(?:(?:-|\s)(?!without\b|no\b|not including\b|and\b|or\b|with\b)[a-z0-9]+)*)\b/gi;
-        let negMatch;
-        while ((negMatch = negationRegex.exec(lowerInstruction)) !== null) {
-            const term = negMatch[1].trim().toLowerCase(); // Capture, trim, and lowercase the term
-            if (!term) continue; // Skip if term is empty after trim
-
-            let termType = 'unknown';
-            // Attempt to classify the negated term
-            if (DataService.isValidPokemon(term)) termType = 'pokemon';
-            else if (DataService.isValidItem(term)) termType = 'item';
-            else if (DataService.isValidAbility(term)) termType = 'ability';
-            else if (DataService.isValidMove(term)) termType = 'move';
-            else if (TERA_TYPES.includes(term)) termType = 'type'; // Could be tera or general type
-
-            // Push the entity covering the whole "without term" phrase
-            entities.push({
-                type: 'negation',
-                value: { type: termType, value: term },
-                start: negMatch.index,
-                end: negMatch.index + negMatch[0].length
-            });
+        // Size/Weight Requests
+        const sizeWeightRegex = /(\d+)\s+(small|tall|light|heavy)(?:\s+pokemon)?/gi;
+        let swMatch;
+        while ((swMatch = sizeWeightRegex.exec(lowerInstruction)) !== null) {
+            const count = parseInt(swMatch[1], 10);
+            const type = swMatch[2].toLowerCase(); // Ensure lowercase type
+            if (!isNaN(count) && count > 0) {
+                const entityType = (type === 'small' || type === 'tall') ? 'size' : 'weight';
+                entities.push({ type: entityType, value: { type, count }, start: swMatch.index, end: swMatch.index + swMatch[0].length });
+            }
         }
 
-         // Archetypes
-         for (const key in ARCHETYPES) {
-             ARCHETYPES[key].keywords.forEach(keyword => {
-                 const regex = new RegExp(`\\b${this._escapeRegex(keyword)}\\b`, 'g');
-                 let match;
-                 while ((match = regex.exec(lowerInstruction)) !== null) {
-                     entities.push({ type: 'archetype', key: key, value: keyword, start: match.index, end: match.index + keyword.length });
-                 }
-             });
-         }
+        // Roles (Keywords from Constants) - Needs implementation if roles beyond stats are needed
+
+
+        // Negations ("without", "no", "not including") - Handles multiple negations and multi-word items/moves
+       // Updated Regex to capture multi-word terms after negation and stop at next negation
+       const negationRegex = /\b(?:without|no|not including)\s+([a-z0-9]+(?:(?:-|\s)(?!without\b|no\b|not including\b|and\b|or\b|with\b)[a-z0-9]+)*)\b/gi;
+       let negMatch;
+       while ((negMatch = negationRegex.exec(lowerInstruction)) !== null) {
+           const term = negMatch[1].trim().toLowerCase(); // Capture, trim, and lowercase the term
+           if (!term) continue; // Skip if term is empty after trim
+
+           let termType = 'unknown';
+           // Attempt to classify the negated term
+           if (DataService.isValidPokemon(term)) termType = 'pokemon';
+           else if (DataService.isValidItem(term)) termType = 'item';
+           else if (DataService.isValidAbility(term)) termType = 'ability';
+           else if (DataService.isValidMove(term)) termType = 'move';
+           else if (TERA_TYPES.includes(term)) termType = 'type'; // Could be tera or general type
+
+           // Push the entity covering the whole "without term" phrase
+           entities.push({
+               type: 'negation',
+               value: { type: termType, value: term },
+               start: negMatch.index,
+               end: negMatch.index + negMatch[0].length
+           });
+       }
+
+        // Archetypes
+        for (const key in ARCHETYPES) {
+            ARCHETYPES[key].keywords.forEach(keyword => {
+                const regex = new RegExp(`\\b${this._escapeRegex(keyword)}\\b`, 'g');
+                let match;
+                while ((match = regex.exec(lowerInstruction)) !== null) {
+                    entities.push({ type: 'archetype', key: key, value: keyword, start: match.index, end: match.index + keyword.length });
+                }
+            });
+        }
 
 
          // --- Priority 4: Single-Word Items, Moves, Abilities, Types (Disambiguated) ---
@@ -881,28 +881,28 @@ const Generator = {
         const scoredTeams = [];
         const overallMetCriteria = this._createEmptyMetCriteriaStructure(); // To aggregate across all teams
 
-         teams.forEach((team, index) => {
-             try {
-                 const { score, metCriteria: teamMetCriteria } = TeamMatcher.calculateMatchScore(parsedInstruction, team);
+        teams.forEach((team, index) => {
+            try {
+                const { score, metCriteria: teamMetCriteria } = TeamMatcher.calculateMatchScore(parsedInstruction, team);
 
-                 // Check if a negative constraint was violated (score <= penalty indicates this)
-                 // TeamMatcher now returns score 0 if penalty is applied, so check < 0 or a very low value
-                  if (score <= SCORE_WEIGHTS.NEGATIVE_CONSTRAINT_PENALTY + 1) { // Allow for slight positive score before penalty
-                     // console.log(`Team ${index} (${team?.filename}) excluded due to negation violation.`);
-                      return; // Skip this team entirely
-                  }
-
-                 // Only consider teams with positive scores for unmet criteria analysis and results
-                 if (score > 0) {
-                     scoredTeams.push({ team, score, index });
-                     // Aggregate met criteria from this positively scoring team
-                     this._aggregateMetCriteria(overallMetCriteria, teamMetCriteria);
+                // Check if a negative constraint was violated (score <= penalty indicates this)
+                // TeamMatcher now returns score 0 if penalty is applied, so check < 0 or a very low value
+                 if (score <= SCORE_WEIGHTS.NEGATIVE_CONSTRAINT_PENALTY + 1) { // Allow for slight positive score before penalty
+                    // console.log(`Team ${index} (${team?.filename}) excluded due to negation violation.`);
+                     return; // Skip this team entirely
                  }
-             } catch (error) {
-                 console.error(`Error matching team index ${index} (Filename: ${team?.filename || 'N/A'}):`, error);
-                 // Don't add to scoredTeams if error during scoring
-             }
-         });
+
+                // Only consider teams with positive scores for unmet criteria analysis and results
+                if (score > 0) {
+                    scoredTeams.push({ team, score, index });
+                    // Aggregate met criteria from this positively scoring team
+                    this._aggregateMetCriteria(overallMetCriteria, teamMetCriteria);
+                }
+            } catch (error) {
+                console.error(`Error matching team index ${index} (Filename: ${team?.filename || 'N/A'}):`, error);
+                // Don't add to scoredTeams if error during scoring
+            }
+        });
 
         // 4. Sort scored teams
         scoredTeams.sort((a, b) => b.score - a.score); // Highest score first
@@ -914,10 +914,6 @@ const Generator = {
 
         // Select teams: Take all teams with the highest score
         const bestTeamsRaw = noDetect ? [] : scoredTeams.filter(st => st.score === maxScore);
-        // If we have multiple high-scorers, maybe limit to top N? For now, show all tied for first.
-        // const topN = 10;
-        // const bestTeamsRaw = noDetect ? [] : scoredTeams.slice(0, topN);
-
 
         // 6. Identify Unmet Criteria based on *all* positively scoring teams found
         const unmetCriteriaList = this._getUnmetCriteria(parsedInstruction, overallMetCriteria);
@@ -925,109 +921,105 @@ const Generator = {
         // 7. Format the output
         const simplifiedTeams = bestTeamsRaw.map(st => this._simplifyTeamData(st.team));
 
-        // If no teams were found AT ALL (even violating ones), the initial message is fine.
-        // If teams were found but filtered by negations/low score, the unmet criteria list explains why.
-        return [simplifiedTeams, noDetect, unmetCriteriaList, null]; // [teams, noDetect, unmetCriteria, errorMessage]
+        return [simplifiedTeams, noDetect, unmetCriteriaList, null];
     },
 
-     _createEmptyMetCriteriaStructure() {
-         // Creates an object with Sets to store unique met criteria across all teams
-         return {
-             pokemon: new Set(),
-             pokemon_with_items: new Set(), // Will store stringified {pokemon, item}
-             pokemon_with_tera: new Set(),    // Will store stringified {pokemon, tera_type}
-             pokemon_with_abilities: new Set(),// Will store stringified {pokemon, ability}
-             pokemon_with_moves: new Set(),   // Will store stringified {pokemon, move}
-             items: new Set(),
-             moves: new Set(),
-             abilities: new Set(),
-             tera_types: new Set(),
-             types_with_roles: new Set(), // Will store stringified {type, role}
-             types: new Set(),
-             roles: new Set(),
-             size_requests: new Set(),    // Will store stringified {type, count}
-             weight_requests: new Set(), // Will store stringified {type, count}
-             // negations are handled separately
-         };
-     },
+    _createEmptyMetCriteriaStructure() {
+        // Creates an object with Sets to store unique met criteria across all teams
+        return {
+            pokemon: new Set(),
+            pokemon_with_items: new Set(), // Will store stringified {pokemon, item}
+            pokemon_with_tera: new Set(),    // Will store stringified {pokemon, tera_type}
+            pokemon_with_abilities: new Set(),// Will store stringified {pokemon, ability}
+            pokemon_with_moves: new Set(),   // Will store stringified {pokemon, move}
+            items: new Set(),
+            moves: new Set(),
+            abilities: new Set(),
+            tera_types: new Set(),
+            types_with_roles: new Set(), // Will store stringified {type, role}
+            types: new Set(),
+            roles: new Set(),
+            size_requests: new Set(),    // Will store stringified {type, count}
+            weight_requests: new Set(), // Will store stringified {type, count}
+            // negations are handled separately
+        };
+    },
 
-     _aggregateMetCriteria(overallMet, teamMet) {
-         // Merges criteria met by a single team into the overall tracker
-         for (const category in teamMet) {
-             if (overallMet[category] && Array.isArray(teamMet[category])) {
-                 teamMet[category].forEach(value => {
-                     const key = typeof value === 'object' ? JSON.stringify(value) : value;
-                     overallMet[category].add(key);
-                 });
-             }
-         }
-     },
+    _aggregateMetCriteria(overallMet, teamMet) {
+        // Merges criteria met by a single team into the overall tracker
+        for (const category in teamMet) {
+            if (overallMet[category] && Array.isArray(teamMet[category])) {
+                teamMet[category].forEach(value => {
+                    const key = typeof value === 'object' ? JSON.stringify(value) : value;
+                    overallMet[category].add(key);
+                });
+            }
+        }
+    },
 
-      _getUnmetCriteria(parsed, overallMetSets) {
-         const unmet = [];
+     _getUnmetCriteria(parsed, overallMetSets) {
+        const unmet = [];
 
-         // Helper to check a category
-         const checkCategory = (category, requestedItems, stringifier) => {
-             if (!requestedItems || requestedItems.length === 0) return; // Skip if nothing was requested in this category
+        // Helper to check a category
+        const checkCategory = (category, requestedItems, stringifier) => {
+            if (!requestedItems || requestedItems.length === 0) return; // Skip if nothing was requested in this category
 
-             const metSet = overallMetSets[category]; // The Set of met items (or stringified objects)
+            const metSet = overallMetSets[category]; // The Set of met items (or stringified objects)
 
-             requestedItems.forEach(item => {
-                 const key = stringifier(item);
-                 if (!metSet?.has(key)) {
-                     // Only add if *no* positively scoring team met this specific criterion
-                     unmet.push(this._getCriterionString(category, item));
-                 }
-             });
-         };
+            requestedItems.forEach(item => {
+                const key = stringifier(item);
+                if (!metSet?.has(key)) {
+                    // Only add if *no* positively scoring team met this specific criterion
+                    unmet.push(this._getCriterionString(category, item));
+                }
+            });
+        };
 
-         // Check each category from the parsed instruction
-         // Need to use the Set versions (overallMetSets) for the check
-         checkCategory('pokemon', parsed.pokemon, p => p);
-         checkCategory('pokemon_with_items', parsed.pokemon_with_items, JSON.stringify);
-         checkCategory('pokemon_with_tera', parsed.pokemon_with_tera, JSON.stringify);
-         checkCategory('pokemon_with_abilities', parsed.pokemon_with_abilities, JSON.stringify);
-         checkCategory('pokemon_with_moves', parsed.pokemon_with_moves, JSON.stringify);
-         checkCategory('items', parsed.items, i => i);
-         checkCategory('moves', parsed.moves, m => m);
-         checkCategory('abilities', parsed.abilities, a => a);
-         checkCategory('tera_types', parsed.tera_types, t => t);
-         checkCategory('types_with_roles', parsed.types_with_roles, JSON.stringify);
-         checkCategory('types', parsed.types, t => t);
-         checkCategory('roles', parsed.roles, r => r);
-         checkCategory('size_requests', parsed.size_requests, JSON.stringify);
-         checkCategory('weight_requests', parsed.weight_requests, JSON.stringify);
+        // Check each category from the parsed instruction
+        checkCategory('pokemon', parsed.pokemon, p => p);
+        checkCategory('pokemon_with_items', parsed.pokemon_with_items, JSON.stringify);
+        checkCategory('pokemon_with_tera', parsed.pokemon_with_tera, JSON.stringify);
+        checkCategory('pokemon_with_abilities', parsed.pokemon_with_abilities, JSON.stringify);
+        checkCategory('pokemon_with_moves', parsed.pokemon_with_moves, JSON.stringify);
+        checkCategory('items', parsed.items, i => i);
+        checkCategory('moves', parsed.moves, m => m);
+        checkCategory('abilities', parsed.abilities, a => a);
+        checkCategory('tera_types', parsed.tera_types, t => t);
+        checkCategory('types_with_roles', parsed.types_with_roles, JSON.stringify);
+        checkCategory('types', parsed.types, t => t);
+        checkCategory('roles', parsed.roles, r => r);
+        checkCategory('size_requests', parsed.size_requests, JSON.stringify);
+        checkCategory('weight_requests', parsed.weight_requests, JSON.stringify);
 
-         // Return unique unmet criteria strings
-         return [...new Set(unmet)];
-     },
+        // Return unique unmet criteria strings
+        return [...new Set(unmet)];
+    },
 
-     _getCriterionString(category, value) {
-         // Creates a user-friendly string for an unmet criterion
-         try {
-             switch (category) {
-                 case 'pokemon': return `Pokémon: <code>${value}</code>`;
-                 case 'pokemon_with_items': return `Pokémon/Item: <code>${value.pokemon}</code> with <code>${value.item}</code>`;
-                 case 'pokemon_with_tera': return `Pokémon/Tera: <code>${value.pokemon}</code> Tera <code>${value.tera_type}</code>`;
-                 case 'pokemon_with_abilities': return `Pokémon/Ability: <code>${value.pokemon}</code> with <code>${value.ability}</code>`;
-                 case 'pokemon_with_moves': return `Pokémon/Move: <code>${value.pokemon}</code> with <code>${value.move}</code>`;
-                 case 'items': return `Item: <code>${value}</code>`;
-                 case 'moves': return `Move: <code>${value}</code>`;
-                 case 'abilities': return `Ability: <code>${value}</code>`;
-                 case 'tera_types': return `Tera Type: <code>${value}</code>`;
-                 case 'types_with_roles': return `Type/Role: <code>${value.role} ${value.type}</code>`;
-                 case 'types': return `Type: <code>${value}</code>`;
-                 case 'roles': return `Role: <code>${value}</code>`;
-                 case 'size_requests': return `Size: <code>${value.count} ${value.type} Pokémon</code>`;
-                 case 'weight_requests': return `Weight: <code>${value.count} ${value.type} Pokémon</code>`;
-                 default: return JSON.stringify(value); // Fallback
-             }
-         } catch (e) {
-             console.error("Error generating criterion string for:", category, value, e);
-             return "an unspecified criterion"; // Error fallback
-         }
-     },
-
+    _getCriterionString(category, value) {
+        // Creates q string for an unmet criterion
+        try {
+            switch (category) {
+                case 'pokemon': return `Pokémon: <code>${value}</code>`;
+                case 'pokemon_with_items': return `Pokémon/Item: <code>${value.pokemon}</code> with <code>${value.item}</code>`;
+                case 'pokemon_with_tera': return `Pokémon/Tera: <code>${value.pokemon}</code> Tera <code>${value.tera_type}</code>`;
+                case 'pokemon_with_abilities': return `Pokémon/Ability: <code>${value.pokemon}</code> with <code>${value.ability}</code>`;
+                case 'pokemon_with_moves': return `Pokémon/Move: <code>${value.pokemon}</code> with <code>${value.move}</code>`;
+                case 'items': return `Item: <code>${value}</code>`;
+                case 'moves': return `Move: <code>${value}</code>`;
+                case 'abilities': return `Ability: <code>${value}</code>`;
+                case 'tera_types': return `Tera Type: <code>${value}</code>`;
+                case 'types_with_roles': return `Type/Role: <code>${value.role} ${value.type}</code>`;
+                case 'types': return `Type: <code>${value}</code>`;
+                case 'roles': return `Role: <code>${value}</code>`;
+                case 'size_requests': return `Size: <code>${value.count} ${value.type} Pokémon</code>`;
+                case 'weight_requests': return `Weight: <code>${value.count} ${value.type} Pokémon</code>`;
+                default: return JSON.stringify(value); // Fallback
+            }
+        } catch (e) {
+            console.error("Error generating criterion string for:", category, value, e);
+            return "an unspecified criterion"; // Error fallback
+        }
+    },
 
     _simplifyTeamData(team) {
         // Ensure robustness against potentially missing data
@@ -1047,16 +1039,13 @@ const Generator = {
                         type = m.type?.toLowerCase() || 'unknown';
                     } else if (typeof m === 'string' && m !== '-') {
                         name = m;
-                        // Attempt to find move type from DataService if missing (optional enhancement)
-                         // const moveData = DataService.getMoveDetails(name); // Requires getMoveDetails function
-                         // type = moveData?.type || 'unknown';
                     }
                     // Return null if no valid name was found or if it's just a placeholder
                     return (name && name !== '-') ? { name, type } : null;
                 }).filter(Boolean); // Remove nulls
 
                 // Ensure Tera Type is valid or null
-                 const teraType = p.tera_type && TERA_TYPES.includes(p.tera_type.toLowerCase()) ? p.tera_type : null;
+                const teraType = p.tera_type && TERA_TYPES.includes(p.tera_type.toLowerCase()) ? p.tera_type : null;
 
                 return {
                     name: p.name, // Keep original case
@@ -1065,11 +1054,12 @@ const Generator = {
                     moves: processedMoves, // Use the cleaned-up moves array
                     tera_type: teraType,
                     sprite: p.sprites?.front_default || null, // Use default sprite
-                     // Add back height/weight if needed for display or size/weight criteria checking elsewhere
-                     height: p.height,
-                     weight: p.weight,
-                     types: p.types || [],
-                     stats: p.stats || {},
+                    /*
+                    height: p.height,
+                    weight: p.weight,
+                    types: p.types || [],
+                    stats: p.stats || {},
+                    */
                 };
             }).filter(Boolean) // Filter out any null pokemon results
         };
@@ -1079,14 +1069,10 @@ const Generator = {
 // --- Global Exposure ---
 // Expose a single, clean function to the outside world.
 window.generatePokepaste = async function(instruction) {
-    // We wrap the Generator call in an async function for consistency,
-    // even though initialize handles the await internally.
-    // This returns the [simplifiedTeams, noDetect, unmetCriteriaList, errorMessage] array.
     return await Generator.findMatchingTeams(instruction);
 };
 
-// Optional: Initialize data service automatically on script load
-// This starts loading data immediately so it's likely ready when the user inputs text.
+// Initialize data service automatically on script load
 DataService.initialize().catch(err => {
      console.error("Automatic DataService initialization failed on load:", err);
      // Maybe display a user-facing error?
