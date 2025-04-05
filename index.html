@@ -41,33 +41,43 @@
         </div>
 
         <!-- Query Builder Area -->
-        <div class="mb-3 p-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 flex flex-wrap items-start gap-2">
-            <!-- Add Criteria Button -->
-            <div class="relative">
-                 <button id="add-criteria-btn" class="builder-btn add-btn">
-                    <i class="fas fa-plus mr-1"></i> Add Criteria
-                 </button>
-                 <!-- Dropdown Menu for Add Criteria -->
-                 <div id="add-criteria-menu" class="absolute left-0 mt-1 w-40 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-20 hidden">
-                    <a href="#" data-type="pokemon" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">Pokémon</a>
-                    <a href="#" data-type="item" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Item</a>
-                    <a href="#" data-type="ability" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Ability</a>
-                    <a href="#" data-type="move" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Move</a>
-                    <a href="#" data-type="tera" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Tera</a>
-                    <a href="#" data-type="role" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Role</a>
-                 </div>
-             </div>
+        <div class="mb-3 p-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 rounded-t-md">
+            <!-- Top Row for Buttons -->
+            <div class="flex justify-between items-center mb-2">
+                <!-- Left Buttons Group -->
+                <div class="flex items-center gap-2">
+                    <!-- Add Criteria Button Group -->
+                    <div class="relative">
+                         <button id="add-criteria-btn" class="builder-btn add-btn" disabled title="Loading data..."> <!-- Start disabled -->
+                            <i class="fas fa-plus mr-1"></i> Add Criteria
+                         </button>
+                         <!-- Dropdown Menu for Add Criteria -->
+                         <div id="add-criteria-menu" class="absolute left-0 mt-1 w-40 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-20 hidden">
+                            <a href="#" data-type="pokemon" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">Pokémon</a>
+                            <a href="#" data-type="item" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Item</a>
+                            <a href="#" data-type="ability" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Ability</a>
+                            <a href="#" data-type="move" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Move</a>
+                            <a href="#" data-type="tera" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Tera</a>
+                            <a href="#" data-type="role" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Role</a>
+                         </div>
+                     </div>
+                     <!-- Delete All Button (Initially Hidden) -->
+                     <button id="delete-all-criteria-btn" class="builder-btn delete-all-btn hidden" title="Remove all criteria">
+                         <i class="fas fa-trash-alt mr-1"></i> Clear All
+                     </button>
+                </div>
 
-            <!-- Criteria Container -->
-            <div id="criteria-container" class="flex flex-wrap gap-2 flex-grow min-h-[40px]">
-                <!-- Criteria blocks will be added here -->
+                 <!-- Search Button (Right) -->
+                 <button id="search-btn" class="builder-btn search-btn">
+                     <span id="search-text">Search</span>
+                     <div id="loading-spinner" class="ml-2 hidden excel-spinner"><div></div><div></div><div></div></div>
+                 </button>
             </div>
 
-            <!-- Search Button -->
-             <button id="search-btn" class="builder-btn search-btn ml-auto self-center"> <!-- Use self-center to align vertically if criteria wrap -->
-                 <span id="search-text">Search</span>
-                 <div id="loading-spinner" class="ml-2 hidden excel-spinner"><div></div><div></div><div></div></div>
-             </button>
+            <!-- Criteria Container (Below Buttons) -->
+            <div id="criteria-container" class="flex flex-wrap gap-2 min-h-[40px]">
+                <!-- Criteria blocks will be added here by JS -->
+            </div>
         </div>
 
 
@@ -76,7 +86,7 @@
             <!-- Team Title and Copy Button -->
             <div id="team-header" class="p-2 border-b border-gray-300 dark:border-gray-700 flex justify-between items-center bg-gray-100 dark:bg-gray-700">
                  <h2 id="team-title" class="text-lg font-bold text-gray-800 dark:text-gray-100 truncate mr-2">Build a query to search</h2>
-                 <button id="copy-all-btn" class="px-3 py-1 text-sm font-semibold flex items-center transition-colors hidden whitespace-nowrap">
+                 <button id="copy-all-btn" class="builder-btn px-3 py-1 text-sm flex items-center transition-colors hidden whitespace-nowrap">
                      Copy Poképaste
                  </button>
             </div>
@@ -106,51 +116,43 @@
     <!-- Templates for Criteria Blocks (Hidden) -->
     <div id="criteria-templates" class="hidden">
         <!-- Pokémon Criterion Template -->
-        <div class="criteria-block pokemon-block" data-type="pokemon">
+        <div class="criteria-block pokemon-block pokemon-block-fullwidth" data-type="pokemon">
             <button class="remove-criteria-btn" title="Remove Pokémon criterion">×</button>
             <div class="criteria-label">Pokémon</div>
             <select class="builder-select pokemon-select" data-field="pokemonName">
-                <option value="">-- Select Pokémon --</option>
                 <!-- Options added by JS -->
             </select>
             <div class="pokemon-details">
                 <select class="builder-select item-select" data-field="item" title="Item">
-                    <option value="">-- Any Item --</option>
                     <!-- Options added by JS -->
                 </select>
                 <select class="builder-select ability-select" data-field="ability" title="Ability">
-                     <option value="">-- Any Ability --</option>
                      <!-- Options added by JS -->
                 </select>
                 <select class="builder-select tera-select" data-field="tera" title="Tera Type">
-                     <option value="">-- Any Tera --</option>
                      <!-- Options added by JS -->
                 </select>
                 <select class="builder-select move-select" data-field="move1" title="Move 1">
-                     <option value="">-- Any Move --</option>
                      <!-- Options added by JS -->
                  </select>
                  <select class="builder-select move-select" data-field="move2" title="Move 2">
-                     <option value="">-- Any Move --</option>
                      <!-- Options added by JS -->
                  </select>
                  <select class="builder-select move-select" data-field="move3" title="Move 3">
-                      <option value="">-- Any Move --</option>
                       <!-- Options added by JS -->
                   </select>
                   <select class="builder-select move-select" data-field="move4" title="Move 4">
-                      <option value="">-- Any Move --</option>
                       <!-- Options added by JS -->
                   </select>
             </div>
         </div>
 
-        <!-- General Criterion Template (Item, Ability, Move, Tera, Role) -->
-        <div class="criteria-block general-block" data-type="general"> <!-- Specific type set by JS -->
+        <!-- General Criterion Template -->
+        <div class="criteria-block general-block" data-type="general">
              <button class="remove-criteria-btn" title="Remove criterion">×</button>
-             <div class="criteria-label">General</div> <!-- Label set by JS -->
+             <div class="criteria-label">General</div>
              <select class="builder-select value-select" data-field="value">
-                 <option value="">-- Select Value --</option>
+                 <option value="" disabled selected>-- Select Value --</option>
                  <!-- Options added by JS -->
              </select>
          </div>

@@ -1,13 +1,3 @@
-/* Import Tailwind base styles (optional if using CDN fully) */
-/* @import 'tailwindcss/base'; */
-/* @import 'tailwindcss/components'; */
-/* @import 'tailwindcss/utilities'; */
-
-/* Custom font to mimic Excel */
-.font-excel {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-}
-
 /* --- Base and Dark Mode --- */
 body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
@@ -69,6 +59,42 @@ html.dark .builder-btn:disabled {
     background-color: #4b5563;
 }
 
+/* Delete All Button Style */
+.delete-all-btn {
+  background-color: #fee2e2; /* red-100 */
+  border-color: #fca5a5; /* red-300 */
+  color: #dc2626; /* red-600 */
+}
+.delete-all-btn:hover {
+  background-color: #fecaca; /* red-200 */
+  border-color: #f87171; /* red-400 */
+  color: #b91c1c; /* red-700 */
+}
+.delete-all-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #fee2e2; /* Keep color */
+}
+
+html.dark .delete-all-btn {
+  background-color: #450a0a; /* red-950 */
+  border-color: #7f1d1d; /* red-800 */
+  color: #fca5a5; /* red-300 */
+}
+html.dark .delete-all-btn:hover {
+  background-color: #7f1d1d; /* red-800 */
+  border-color: #991b1b; /* red-700 */
+  color: #fecaca; /* red-200 */
+}
+html.dark .delete-all-btn:disabled {
+   opacity: 0.6;
+   background-color: #450a0a; /* Keep color */
+}
+
+/* NEW: Style for Pokémon blocks to take full width */
+/*.pokemon-block-fullwidth {
+  flex-basis: 100%;
+}*/
 
 /* Specific Excel Green for Search */
 .search-btn {
@@ -103,7 +129,7 @@ html.dark .search-btn:disabled {
 /* --- Updated Criteria Block Styles --- */
 .criteria-block {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: wrap; /* Allow items inside the block (like pokemon details) to wrap */
   align-items: center;
   gap: 4px;
   padding: 4px 8px 4px 6px;
@@ -111,8 +137,13 @@ html.dark .search-btn:disabled {
   border-radius: 4px;
   background-color: #ffffff;
   position: relative;
-  margin: 2px 0;
+  margin: 2px 0; /* Add vertical margin */
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* NEW: Style for Pokémon blocks to take full width */
+.pokemon-block-fullwidth {
+    flex-basis: 100%; /* Force this block onto its own line */
 }
 
 html.dark .criteria-block {
@@ -198,6 +229,7 @@ html.dark .builder-select:focus {
   align-items: center;
   justify-content: center;
   padding: 0;
+  z-index: 5; /* Ensure it's above other elements */
 }
 
 .remove-criteria-btn:hover {
@@ -213,14 +245,9 @@ html.dark .remove-criteria-btn:hover {
   background-color: #ef4444; /* red-500 */
 }
 
-/* Pokemon details container adjustments */
+/* Pokemon details container */
 .pokemon-details {
   display: contents;
-}
-
-/* When details wrap to new line, add some top margin */
-.criteria-block > .builder-select:not(:first-child) {
-  margin-top: 2px;
 }
 
 /* Add Criteria button adjustments */
@@ -261,7 +288,8 @@ html.dark .excel-sheet { background-color: #1f2937; }
 
 .excel-row {
   display: grid;
-  grid-template-columns: 60px minmax(140px, 1fr) 110px minmax(140px, 1fr) 90px repeat(4, minmax(110px, 1fr));
+  /* Adjusted columns slightly for potentially wider Pokemon names/abilities */
+  grid-template-columns: 50px minmax(150px, 1.2fr) 100px minmax(150px, 1.2fr) 90px repeat(4, minmax(100px, 1fr));
   border-bottom: 1px solid #e5e7eb;
   min-height: 40px;
   align-items: center;
@@ -277,7 +305,7 @@ html.dark .excel-row { border-bottom-color: #4b5563; }
   white-space: nowrap;
   font-size: 0.8rem;
   line-height: 1.3;
-  min-height: 32px;
+  min-height: 32px; /* Reduced slightly */
   display: flex;
   align-items: center;
 }
@@ -290,11 +318,11 @@ html.dark .excel-cell { border-right-color: #4b5563; }
     overflow-wrap: break-word;
     overflow: visible;
     text-overflow: clip;
-    align-items: flex-start;
+    align-items: flex-start; /* Align wrapped text to top */
     padding-top: 8px;
     padding-bottom: 8px;
 }
-.excel-cell.cell-sprite img { display: block; margin: auto; }
+.excel-cell.cell-sprite img { display: block; margin: auto; width: 32px; height: 32px; } /* Slightly smaller sprite */
 .excel-cell.cell-item { display: flex; align-items: center; gap: 4px; }
 .excel-cell.cell-item .item-fallback-text { font-size: 0.7rem; color: #6b7280; }
 html.dark .excel-cell.cell-item .item-fallback-text { color: #9ca3af; }
@@ -320,10 +348,8 @@ html.dark .header-row {
 html.dark .header-row .excel-cell { border-right-color: #4b5563; }
 
 /* Alternating Row Colors */
-html.dark .bg-gray-50 { background-color: #1f2937cc; }
-html.dark .bg-white { background-color: #1f2937; }
-/* Custom class for dark alt rows (used in script.js) */
-.dark\:bg-excel-dark-alt { background-color: #273142; } /* Slightly different shade */
+/* Using Tailwind classes directly in JS for simplicity now */
+/* .dark\:bg-excel-dark-alt { background-color: #273142; } */
 
 
 /* Spinner (Unchanged) */
@@ -396,7 +422,7 @@ html.dark .other-team-preview .team-name-preview { color: #d1d5db; }
 /* --- REMOVED Styles for Help, Input, Suggestions, Unmet Criteria --- */
 
 /* --- General Dark Mode Overrides (Tailwind fallbacks - Keep) --- */
-html.dark .bg-gray-50 { background-color: #1f2937cc; }
+html.dark .bg-gray-50 { background-color: #1f2937cc; } /* Adjusted dark mode alt row color slightly */
 html.dark .bg-gray-100 { background-color: #1f2937; }
 html.dark .bg-gray-200 { background-color: #374151; }
 html.dark .bg-white { background-color: #1f2937; }
@@ -408,13 +434,19 @@ html.dark .text-gray-600 { color: #d1d5db; }
 html.dark .text-gray-700 { color: #e5e7eb; }
 html.dark .text-gray-800 { color: #f3f4f6; }
 html.dark .text-gray-900 { color: #f9fafb; }
+html.dark .bg-gray-800 { background-color: #1f2937; } /* Ensure consistent dark background */
+html.dark .bg-gray-700 { background-color: #374151; } /* Ensure consistent slightly lighter dark */
+html.dark .dark\:bg-excel-dark-alt { background-color: #273142; } /* Custom dark alt row */
 
-/* Responsive adjustments (Unchanged) */
+
+/* Responsive adjustments */
 @media (max-width: 768px) {
     .excel-row { min-width: 900px; }
      .excel-sheet-container { overflow-x: auto; }
      #team-header { position: relative; top: auto; z-index: 1; }
      .header-row { position: relative; top: auto; z-index: 1; }
-     /* Ensure query builder elements wrap reasonably */
-     #criteria-container { min-height: auto; }
+     /* Allow criteria container to take full width */
+     #criteria-container { width: 100%; }
+     /* Ensure buttons on top row don't get too squished, maybe allow wrap */
+     .flex.justify-between.items-center.mb-2 { flex-wrap: wrap; gap: 8px; }
 }
