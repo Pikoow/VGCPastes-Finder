@@ -20,7 +20,7 @@ const SCORE_WEIGHTS = {
     SIZE_REQUEST: 45,
     WEIGHT_REQUEST: 45,
     GENERAL_MOVE: 20,
-    GENERAL_ABILITY: 25, // Slightly higher than move due to fewer abilities per team
+    GENERAL_ABILITY: 25,
     TYPE_ROLE_MATCH: 30,
     GENERAL_TYPE: 10,
     GENERAL_ROLE: 15,
@@ -28,10 +28,10 @@ const SCORE_WEIGHTS = {
     NEGATIVE_CONSTRAINT_PENALTY: -500
 };
 
-// Common Tera Types (Used for parsing and validation)
+// Tera Types
 const TERA_TYPES = ["normal", "fire", "water", "electric", "grass", "ice", "fighting", "poison", "ground", "flying", "psychic", "bug", "rock", "ghost", "dragon", "dark", "steel", "fairy", "stellar"];
 
-// Basic Archetype Keywords/Cores (Expandable)
+// Archetype
 const ARCHETYPES = {
     "rain": { keywords: ["rain", "drizzle", "swift swim"], cores: [["pelipper"], ["politoed"], ["urshifu-rapid-strike"]], boosts: ["water"] },
     "sun": { keywords: ["sun", "drought", "chlorophyll", "protosynthesis"], cores: [["torkoal"], ["venusaur"], ["walking wake"], ["gouging fire"]], boosts: ["fire", "grass"] },
@@ -56,7 +56,7 @@ const DataService = {
 
     async initialize() {
         if (this.isInitialized) return;
-        if (this.dataLoadedPromise) return this.dataLoadedPromise; // Prevent redundant initializations
+        if (this.dataLoadedPromise) return this.dataLoadedPromise;
 
         /*console.log("Initializing DataService...");*/
         this.dataLoadedPromise = this._loadAllData();
@@ -82,7 +82,6 @@ const DataService = {
     },
 
     async _loadAllData() {
-        // 1. Load processed data first (core requirement)
         try {
             const response = await fetch(DATA_URL);
             if (!response.ok) throw new Error(`Failed to fetch processed data: ${response.status}`);
@@ -96,8 +95,6 @@ const DataService = {
             throw error; // Re-throw to be caught by the caller
         }
 
-        // 2. Fetch supplemental data from Showdown (items, moves, abilities)
-        // Use Promise.allSettled to continue even if one fetch fails
         const results = await Promise.allSettled([
             this._fetchShowdownData(SHOWDOWN_ITEMS_URL, 'BattleItems', this.allItems),
             this._fetchShowdownData(SHOWDOWN_MOVES_URL, 'BattleMovedex', this.allMoves),
@@ -111,17 +108,14 @@ const DataService = {
             }
         });
 
-        // 3. Final cleanup: Ensure lowercase and remove potential empty strings
         this.allItems = new Set([...this.allItems].map(i => i?.toLowerCase()).filter(Boolean));
         this.allMoves = new Set([...this.allMoves].map(m => m?.toLowerCase()).filter(Boolean));
         this.allAbilities = new Set([...this.allAbilities].map(a => a?.toLowerCase()).filter(Boolean));
 
-         // Add aliases or common names if needed (example)
          if (this.pokemonIndex.has('urshifu')) {
             this.pokemonIndex.set('urshifu-rapid-strike', this.pokemonIndex.get('urshifu-rapid-strike') || this.pokemonIndex.get('urshifu'));
             this.pokemonIndex.set('urshifu-single-strike', this.pokemonIndex.get('urshifu-single-strike') || this.pokemonIndex.get('urshifu'));
          }
-         // Add more aliases as necessary
     },
 
     _preprocessRawData() {
@@ -155,18 +149,16 @@ const DataService = {
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP error ${response.status}`);
             const text = await response.text();
-            // More robust regex to find the export object, handling minor variations
             const dataRegex = new RegExp(`exports\\.${exportName}\\s*=\\s*({[\\s\\S]*?});`);
             const match = text.match(dataRegex);
 
             if (match && match[1]) {
-                // This is safer than eval. We extract names using regex.
                 const dataBlock = match[1];
                 const nameRegex = /name:\s*"([^"]+)"/g;
                 let nameMatch;
                 while ((nameMatch = nameRegex.exec(dataBlock)) !== null) {
                     if (nameMatch[1]) {
-                       targetSet.add(nameMatch[1]); // Add directly, will convert to lowercase later
+                       targetSet.add(nameMatch[1]);
                     }
                 }
             } else {
@@ -174,7 +166,6 @@ const DataService = {
             }
         } catch (error) {
             console.error(`Error fetching/parsing ${url}:`, error);
-            // Don't throw here, let allSettled handle it so other fetches can complete
         }
     },
 
@@ -206,7 +197,7 @@ const InstructionParser = {
 
         const lowerInstruction = instruction.toLowerCase();
         const parsed = this._createEmptyParsedObject();
-        const words = lowerInstruction.split(/\s+/); // Simple split for now
+        const words = lowerInstruction.split(/\s+/);
 
         // --- Entity Recognition Strategy ---
         // 1. Find all *potential* mentions of known entities (pokemon, items, moves, abilities)
@@ -246,18 +237,15 @@ const InstructionParser = {
                     break;
                 case 'item':
                     // Check if context links it to a *nearby* unassigned Pokémon
-                    // For now, add to general list if not directly linked in _parsePokemonContext
                     if (!parsed.pokemon_with_items.some(pi => pi.item === entity.value)) {
                        // Basic check: Is it preceded by "with" or "holding"?
                        const precedingText = lowerInstruction.substring(Math.max(0, entity.start - 15), entity.start);
                        if (!/\b(?:with|holding)\s+$/.test(precedingText)) {
                            // Likely a general item request if not following "with/holding"
-                           // (More complex context checks could be added)
                            if (!parsed.items.includes(entity.value)) {
                                 parsed.items.push(entity.value);
                            }
                        }
-                       // Note: _parsePokemonContext handles the direct "Pokemon with item" case
                     }
                     break;
                 case 'move':
@@ -286,7 +274,6 @@ const InstructionParser = {
                       if (!parsed.roles.includes(entity.value)) {
                           parsed.roles.push(entity.value);
                       }
-                      // TODO: Link role to nearby type if applicable
                       break;
                  case 'type': // General type mention
                      if (!parsed.types.includes(entity.value) && !parsed.types_with_roles.some(tr => tr.type === entity.value)) {
@@ -294,27 +281,20 @@ const InstructionParser = {
                      }
                      break;
                  case 'negation': // Handle "without X"
-                     // Ensure we don't add duplicate negations (e.g., if regex accidentally matched overlapping parts)
                      if (!parsed.negations.some(neg => neg.type === entity.value.type && neg.value === entity.value.value)) {
                          parsed.negations.push(entity.value); // value = { type: 'pokemon'|'item'|..., value: string }
                      }
                      break;
-                case 'archetype': // Handle archetype hints
-                    // Could add to a specific list or just use for scoring hints later
-                    // For now, just acknowledge it was found. Can refine later.
-                    // Example: parsed.archetype_hints.push(entity.key);
+                case 'archetype':
                     break;
             }
         }
 
-        // Final cleanup: Remove duplicates from lists
         for (const key in parsed) {
             if (Array.isArray(parsed[key]) && key !== 'pokemon_with_items' && key !== 'pokemon_with_tera' /* etc. keep objects unique */ && key !== 'negations' && key !== 'size_requests' && key !== 'weight_requests' && key !== 'types_with_roles') {
-                 // Simple uniqueness for primitives
                  if (parsed[key].length > 0 && typeof parsed[key][0] !== 'object') {
                       parsed[key] = [...new Set(parsed[key])];
                  }
-                 // Could add custom logic for object uniqueness if needed
             }
         }
 
@@ -508,6 +488,7 @@ const InstructionParser = {
         // Look for the next recognized Pokémon, or keywords indicating a break, or end of string
         const potentialEntitiesAfter = this._findAllPotentialEntities(lowerInstruction.substring(searchStart));
         const nextPokemonEntity = potentialEntitiesAfter.find(e => e.type === 'pokemon');
+        console.log(potentialEntitiesAfter); // mienshao with Damp Rock and amoonguus with Shell Bell
 
         if (nextPokemonEntity) {
             // Adjust searchEnd to be the start of the next Pokémon mention in the original string

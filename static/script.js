@@ -375,10 +375,10 @@ function updateOtherTeamsDisplay() {
             team.pokemons.slice(0, 6).forEach(pokemon => { // Show max 6 sprites
                  if (!pokemon) return; // Skip if pokemon data is null/invalid
                 const img = document.createElement('img');
-                img.src = pokemon.sprite || 'static/assets/pokeball_icon.png';
+                img.src = pokemon.sprite || 'static/assets/pokeball_icon.png' || '';
                 img.alt = pokemon.name || '';
                 img.className = 'w-5 h-5 object-contain'; // Use object-contain
-                img.onerror = () => { img.src = 'static/assets/pokeball_icon.png'; }; // Fallback sprite
+                img.onerror = () => { img.src = 'static/assets/pokeball_icon.png' || ''; }; // Fallback sprite
                 spriteContainer.appendChild(img);
             });
             teamPreview.appendChild(spriteContainer);
@@ -469,7 +469,7 @@ function displayTeamInGrid(team, container) {
 
         row.innerHTML = `
             <div class="excel-cell cell-sprite">
-                <img src="${pokemon.sprite || 'static/assets/pokeball_icon.png'}" alt="${pokemon.name || 'Pokemon'}" class="w-8 h-8 mx-auto object-contain" onerror="this.onerror=null; this.src='static/assets/pokeball_icon.png';">
+                <img src="${pokemon.sprite || 'static/assets/pokeball_icon.png' || ''}" alt="${pokemon.name || 'Pokemon'}" class="w-8 h-8 mx-auto object-contain" onerror="this.onerror=null; this.src='static/assets/pokeball_icon.png';">
             </div>
             <div class="excel-cell font-medium cell-wrap">${pokemon.name || 'Unknown'}</div>
             <div class="excel-cell cell-item">${itemCellHTML}</div>
@@ -531,7 +531,6 @@ function copyTeamToClipboard(team) {
     navigator.clipboard.writeText(teamText).then(() => {
         const message = document.getElementById("global-copy-message");
         message.classList.add("visible");
-        // message.classList.remove("hidden"); // visible class handles opacity/transform
 
         // Clear previous timeouts if any
         if (message.timeoutId) clearTimeout(message.timeoutId);
