@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VGC Pastes Finder - Spreadsheet View</title>
+    <title>VGC Pastes Finder - Query Builder</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="static/styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" /> <!-- Font Awesome for Icons -->
     <script>
-        // Immediately set dark mode based on localStorage to prevent FOUC (Flash of Unstyled Content)
+        // Immediately set dark mode based on localStorage to prevent FOUC
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
         } else {
@@ -16,16 +16,15 @@
         }
     </script>
 </head>
-<body class="bg-gray-200 text-gray-900 dark:bg-gray-900 dark:text-gray-200 font-excel">
+<body class="bg-gray-200 text-gray-900 dark:bg-gray-900 dark:text-gray-200 font-excel text-sm">
     <!-- Global Copy Message (Initially hidden via opacity/transform in CSS) -->
     <div id="global-copy-message" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 excel-copy-message">
-        <!-- SVG checkmark can be nicer -->
         <svg class="inline-block w-4 h-4 mr-2 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
         <span>Poképaste copied to clipboard!</span>
     </div>
 
     <!-- Main Container -->
-    <div class="container mx-auto p-4 max-w-7xl"> <!-- Limit max width -->
+    <div class="container mx-auto p-4 max-w-7xl">
         <!-- Toolbar Area -->
         <div class="flex flex-wrap justify-between items-center mb-3 p-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 rounded-t-md">
             <div class="flex items-center mb-2 sm:mb-0">
@@ -41,86 +40,42 @@
             </div>
         </div>
 
-        <!-- Formula Bar Area -->
-        <div class="flex items-center mb-1 p-1 bg-gray-100 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700">
-            <span class="font-mono text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 mr-1 rounded-sm">fx</span>
-            <input type="text" id="instruction" placeholder="Enter team request (e.g., Rain team with Pelipper holding Damp Rock)" class="flex-grow p-1 text-sm border focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:focus:border-blue-400 rounded-sm">
-            <button id="search-btn" class="px-3 py-1 text-sm font-semibold ml-1 flex items-center transition-colors">
-                <span id="search-text">Search</span>
-                <!-- Spinner hidden by default, relies on CSS for styling -->
-                <div id="loading-spinner" class="ml-2 hidden excel-spinner"><div></div><div></div><div></div></div>
-            </button>
-             <button id="format-help-btn" title="Show Search Help" class="ml-1 p-1 border rounded transition-colors text-sm">
-                <span>?</span>
-            </button>
+        <!-- Query Builder Area -->
+        <div class="mb-3 p-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 flex flex-wrap items-start gap-2">
+            <!-- Add Criteria Button -->
+            <div class="relative">
+                 <button id="add-criteria-btn" class="builder-btn add-btn">
+                    <i class="fas fa-plus mr-1"></i> Add Criteria
+                 </button>
+                 <!-- Dropdown Menu for Add Criteria -->
+                 <div id="add-criteria-menu" class="absolute left-0 mt-1 w-40 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-20 hidden">
+                    <a href="#" data-type="pokemon" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">Pokémon</a>
+                    <a href="#" data-type="item" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Item</a>
+                    <a href="#" data-type="ability" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Ability</a>
+                    <a href="#" data-type="move" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Move</a>
+                    <a href="#" data-type="tera" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Tera</a>
+                    <a href="#" data-type="role" class="block px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 criteria-menu-item">General Role</a>
+                 </div>
+             </div>
+
+            <!-- Criteria Container -->
+            <div id="criteria-container" class="flex flex-wrap gap-2 flex-grow min-h-[40px]">
+                <!-- Criteria blocks will be added here -->
+            </div>
+
+            <!-- Search Button -->
+             <button id="search-btn" class="builder-btn search-btn ml-auto self-center"> <!-- Use self-center to align vertically if criteria wrap -->
+                 <span id="search-text">Search</span>
+                 <div id="loading-spinner" class="ml-2 hidden excel-spinner"><div></div><div></div><div></div></div>
+             </button>
         </div>
 
-        <!-- Did you mean suggestion -->
-        <div id="did-you-mean" class="text-left text-xs mb-2 pl-1 hidden">
-            <span class="text-gray-600 dark:text-gray-400">Did you mean: </span>
-            <a id="suggestion-link" href="#" class="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-semibold"></a>
-            <span class="text-gray-600 dark:text-gray-400">?</span>
-        </div>
-
-        <!-- Unmet Criteria Message Area -->
-        <div id="unmet-criteria-message" class="text-left text-xs mb-2 pl-1 hidden unmet-criteria-box">
-            <span class="font-semibold">Note:</span> The following parts of your query didn't match any teams and were ignored:
-            <ul class="list-disc list-inside ml-2">
-                <!-- Messages will be inserted here by script.js -->
-            </ul>
-        </div>
-
-        <!-- Advanced Team Search Help Section (Initially hidden via CSS opacity/max-height) -->
-        <div id="format-help" class="mb-4 p-3 border text-xs">
-            <h3 class="text-sm font-bold mb-2">Search Help</h3>
-            <p class="mb-2">Use keywords to find teams. Tip : You can combine all the terms for more specific results. Examples:</p>
-            <ul class="list-disc list-inside space-y-1">
-                <li>Specific Pokémon: <code>Flutter Mane</code>, <code>Urshifu-Rapid-Strike</code></li>
-                <li>Pokémon with Specifics:
-                    <ul class="ml-4 list-disc list-inside">
-                        <li><code>Kyogre with Choice Specs</code> (Item)</li>
-                        <li><code>Gholdengo Tera Steel</code> (Tera Type)</li>
-                        <li><code>Tornadus Prankster</code> | <code>Tornadus with Prankster</code> (Ability)</li>
-                        <li><code>Incineroar with Parting Shot</code> (Move)</li>
-                   </ul>
-                </li>
-                <li>General Moves/Abilities/Items/Tera:
-                    <ul class="ml-4 list-disc list-inside">
-                        <li><code>team with intimidate</code></li>
-                        <li><code>tailwind team</code></li>
-                        <li><code>team with safety goggles</code></li>
-                        <li><code>team with grass tera</code></li>
-                    </ul>
-                </li>
-                <li>Types & Roles:
-                    <ul class="ml-4 list-disc list-inside">
-                        <li><code>water type</code> (Any Pokémon has type)</li>
-                        <li><code>fast attacker</code> (Based on stats)</li>
-                        <li><code>bulky steel type</code> (Combines type and role)</li>
-                        <li>Roles include: <code>attacker</code>, <code>special attacker</code>, <code>fast</code>/<code>speedy</code>, <code>bulky</code>/<code>hp</code>, <code>defensive</code>, <code>specially defensive</code>, <code>wall</code></li>
-                    </ul>
-                </li>
-                <li>Size/Weight (Specify count):
-                   <ul class="ml-4 list-disc list-inside">
-                        <li><code>2 small pokemon</code> (<= 0.5m)</li>
-                        <li><code>1 heavy pokemon</code> (>= 200kg)</li>
-                        <li><code>team with 3 tall pokemon</code> (>= 2.0m)</li>
-                   </ul>
-               </li>
-               <li>Negations:
-                   <ul class="ml-4 list-disc list-inside">
-                       <li><code>team without Incineroar</code></li>
-                       <li><code>no fake out</code></li>
-                   </ul>
-               </li>
-            </ul>
-       </div>
 
         <!-- Spreadsheet Area -->
         <div id="team-sheet-container" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 overflow-x-auto rounded-b-md shadow-sm">
             <!-- Team Title and Copy Button -->
-            <div id="team-header" class="p-2 border-b border-gray-300 dark:border-gray-700 flex justify-between items-center bg-gray-100 dark:bg-gray-700"> <!-- Removed sticky -->
-                 <h2 id="team-title" class="text-lg font-bold text-gray-800 dark:text-gray-100 truncate mr-2">Enter a query to search</h2>
+            <div id="team-header" class="p-2 border-b border-gray-300 dark:border-gray-700 flex justify-between items-center bg-gray-100 dark:bg-gray-700">
+                 <h2 id="team-title" class="text-lg font-bold text-gray-800 dark:text-gray-100 truncate mr-2">Build a query to search</h2>
                  <button id="copy-all-btn" class="px-3 py-1 text-sm font-semibold flex items-center transition-colors hidden whitespace-nowrap">
                      Copy Poképaste
                  </button>
@@ -129,12 +84,12 @@
             <!-- Team Container (Excel Sheet) -->
             <div id="team-container" class="excel-sheet">
                  <!-- Initial message -->
-                 <div id="initial-message" class="p-4 text-center text-gray-500 dark:text-gray-400">Enter a query above to search for VGC teams.</div>
+                 <div id="initial-message" class="p-4 text-center text-gray-500 dark:text-gray-400">Use the 'Add Criteria' button above to specify what kind of team you are looking for.</div>
                  <!-- Rows will be generated here by script.js -->
             </div>
 
              <!-- Other Matching Teams Section -->
-            <div id="other-teams-container" class="mt-1 p-2 border-t border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-750 hidden"> <!-- Initially hidden -->
+            <div id="other-teams-container" class="mt-1 p-2 border-t border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-750 hidden">
                 <h3 id="other-teams-title" class="text-sm font-bold mb-2 text-gray-700 dark:text-gray-200 hidden"></h3>
                 <div id="other-teams-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                     <!-- Other team previews will be generated here -->
@@ -146,6 +101,59 @@
         <div class="mt-3 p-1 text-xs text-center text-gray-500 dark:text-gray-400 border-t border-gray-300 dark:border-gray-700">
             VGC Pastes Finder | Data sourced from the <a href="https://tinyurl.com/vgcpastes2023" target="_blank" class="excel-link">VGC Pastes community project</a>.
         </div>
+    </div>
+
+    <!-- Templates for Criteria Blocks (Hidden) -->
+    <div id="criteria-templates" class="hidden">
+        <!-- Pokémon Criterion Template -->
+        <div class="criteria-block pokemon-block" data-type="pokemon">
+            <button class="remove-criteria-btn" title="Remove Pokémon criterion">×</button>
+            <div class="criteria-label">Pokémon</div>
+            <select class="builder-select pokemon-select" data-field="pokemonName">
+                <option value="">-- Select Pokémon --</option>
+                <!-- Options added by JS -->
+            </select>
+            <div class="pokemon-details">
+                <select class="builder-select item-select" data-field="item" title="Item">
+                    <option value="">-- Any Item --</option>
+                    <!-- Options added by JS -->
+                </select>
+                <select class="builder-select ability-select" data-field="ability" title="Ability">
+                     <option value="">-- Any Ability --</option>
+                     <!-- Options added by JS -->
+                </select>
+                <select class="builder-select tera-select" data-field="tera" title="Tera Type">
+                     <option value="">-- Any Tera --</option>
+                     <!-- Options added by JS -->
+                </select>
+                <select class="builder-select move-select" data-field="move1" title="Move 1">
+                     <option value="">-- Any Move --</option>
+                     <!-- Options added by JS -->
+                 </select>
+                 <select class="builder-select move-select" data-field="move2" title="Move 2">
+                     <option value="">-- Any Move --</option>
+                     <!-- Options added by JS -->
+                 </select>
+                 <select class="builder-select move-select" data-field="move3" title="Move 3">
+                      <option value="">-- Any Move --</option>
+                      <!-- Options added by JS -->
+                  </select>
+                  <select class="builder-select move-select" data-field="move4" title="Move 4">
+                      <option value="">-- Any Move --</option>
+                      <!-- Options added by JS -->
+                  </select>
+            </div>
+        </div>
+
+        <!-- General Criterion Template (Item, Ability, Move, Tera, Role) -->
+        <div class="criteria-block general-block" data-type="general"> <!-- Specific type set by JS -->
+             <button class="remove-criteria-btn" title="Remove criterion">×</button>
+             <div class="criteria-label">General</div> <!-- Label set by JS -->
+             <select class="builder-select value-select" data-field="value">
+                 <option value="">-- Select Value --</option>
+                 <!-- Options added by JS -->
+             </select>
+         </div>
     </div>
 
     <!-- Load Scripts last -->

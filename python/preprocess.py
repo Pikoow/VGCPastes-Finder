@@ -130,7 +130,11 @@ def parse_pokepaste(file_path):
             parts = line.split(" @ ")
             if len(parts) == 2:
                 name, item = parts
-                current_pokemon["name"] = name.strip()  # Keep the original name
+                if name.endswith("(m)") or name.endswith("(f)"):
+                    name = name[:-4]
+                if "(" in name and ")" in name:
+                    name = name.split("(")[1][:-1].strip()
+                current_pokemon["name"] = name.strip()
                 current_pokemon["item"] = item.strip()
             else:
                 # Handle cases where the format is unexpected
