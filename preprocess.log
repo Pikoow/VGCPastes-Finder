@@ -567,3 +567,6 @@
 2025-04-05 18:14:18,791 - Error fetching data for F: 404 Client Error: Not Found for url: https://pokeapi.co/api/v2/pokemon/f
 2025-04-05 18:14:19,545 - Error fetching data for M: 404 Client Error: Not Found for url: https://pokeapi.co/api/v2/pokemon/m
 2025-04-05 18:14:20,025 - Error fetching data for M: 404 Client Error: Not Found for url: https://pokeapi.co/api/v2/pokemon/m
+2025-04-05 18:46:06,387 - Error fetching data for move none: 404 Client Error: Not Found for url: https://pokeapi.co/api/v2/move/none
+2025-04-05 18:46:06,448 - Error fetching data for move none: 404 Client Error: Not Found for url: https://pokeapi.co/api/v2/move/none
+2025-04-05 18:46:06,495 - Error fetching data for move none: 404 Client Error: Not Found for url: https://pokeapi.co/api/v2/move/none
