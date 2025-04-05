@@ -19,8 +19,8 @@ themeToggle.addEventListener("click", () => {
     applyTheme(isDarkMode);
 });
 
+// Apply theme on initial load based on preference/localStorage
 applyTheme(localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches));
-
 
 // --- Query Builder UI ---
 const addCriteriaBtn = document.getElementById('add-criteria-btn');
@@ -33,71 +33,63 @@ const initialMessage = document.getElementById("initial-message");
 let isDataReady = false; // Flag to track if DataService is initialized
 
 // --- Populate Select Options ---
-function populateSelectWithOptions(selectElement, optionsArray, placeholder, valueFormatter = val => val.toLowerCase().replace(/ /g, '-'), textFormatter = val => val, addAnyOption = true) {
+function populateSelectWithOptions(selectElement, optionsData, placeholder, addAnyOption = true, anyOptionText = null) {
     selectElement.innerHTML = ''; // Clear existing options
-
-    const currentVal = selectElement.value; // Store current value if needed (useful for re-populating)
+    const currentVal = selectElement.value; // Store current value
 
     // Add placeholder option
     const placeholderOpt = document.createElement('option');
     placeholderOpt.value = "";
     placeholderOpt.textContent = placeholder;
-    // Disable placeholder unless it's the only option or explicitly selected
-    placeholderOpt.disabled = optionsArray.length > 0;
-    placeholderOpt.selected = !currentVal; // Select placeholder if no value was previously selected
+    placeholderOpt.disabled = true; // Always disable placeholder
+    placeholderOpt.selected = !currentVal; // Select placeholder initially if no value
     selectElement.appendChild(placeholderOpt);
 
-    // Add 'Any' option for optional fields (controlled by addAnyOption flag)
-    // Check dataset.field to avoid adding "Any" to primary pokemon/value selects
+    // Add 'Any' option if requested
     const isPrimarySelector = selectElement.dataset.field === 'pokemonName' || selectElement.dataset.field === 'value';
     if (addAnyOption && !isPrimarySelector) {
         const anyOpt = document.createElement('option');
-        anyOpt.value = ""; // Treat empty value as "Any"
-        // Make "Any" text more specific based on field name if possible
-        let fieldName = selectElement.dataset.field || 'value';
-        fieldName = fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/([A-Z])/g, ' $1'); // Format field name
-        anyOpt.textContent = `Any ${fieldName}`;
+        anyOpt.value = ""; // Represents 'Any'
+        if (anyOptionText) {
+            anyOpt.textContent = anyOptionText;
+        } else {
+            let fieldName = selectElement.dataset.field || 'value';
+            fieldName = fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/([A-Z])/g, ' $1'); // Format field name
+            anyOpt.textContent = `Any ${fieldName}`;
+        }
         selectElement.appendChild(anyOpt);
-         // Ensure placeholder isn't selected if "Any" exists and no value was previously selected
-        if (!currentVal) placeholderOpt.selected = false;
+        // If 'Any' is added and no value was previously selected, select 'Any' instead of placeholder
+        if (!currentVal) {
+            placeholderOpt.selected = false;
+            anyOpt.selected = true;
+        }
     }
 
-
-    // Add actual options
-    optionsArray.forEach(optionValue => {
-        if (!optionValue) return; // Skip null/empty options
+    // Add actual options from the pre-sorted, pre-formatted data
+    optionsData.forEach(optionData => {
+        if (!optionData || !optionData.key) return; // Skip invalid data
         const option = document.createElement('option');
-        const formattedValue = valueFormatter(optionValue);
-        option.value = formattedValue;
-
-        // Determine type for original case lookup
-        let type = selectElement.closest('[data-type]')?.dataset.type || 'unknown';
-        if (selectElement.dataset.field && ['item', 'ability', 'move', 'tera', 'role', 'pokemonName'].includes(selectElement.dataset.field)) {
-            // Map field name to type if possible
-            if (selectElement.dataset.field === 'pokemonName') type = 'pokemon';
-            else if (selectElement.dataset.field === 'tera') type = 'tera';
-            else if (selectElement.dataset.field === 'role') type = 'role';
-            else type = selectElement.dataset.field; // ability, item, move
-        }
-
-        option.textContent = DataService.getOriginalCaseForSelect(type, optionValue);
+        option.value = optionData.key; // Use the lowercase key
+        option.textContent = optionData.display; // Use the pre-formatted text with count
         selectElement.appendChild(option);
 
         // Reselect previous value if it exists in the new options
-        if (currentVal && formattedValue === currentVal) {
+        if (currentVal && optionData.key === currentVal) {
             option.selected = true;
-            placeholderOpt.selected = false; // Ensure placeholder is not selected
+            placeholderOpt.selected = false; // Ensure placeholder isn't selected
+            const anyOpt = selectElement.querySelector('option[value=""]:not([disabled])');
+            if (anyOpt) anyOpt.selected = false;
         }
     });
 
-     // If no value was selected previously AND no option matches a potential default, select the placeholder or "Any"
+     // Final check: if no option ended up selected (e.g., previous value removed), select 'Any' or placeholder
      if (!selectElement.querySelector('option[selected]')) {
-         const anyOption = selectElement.querySelector('option[value=""][disabled="false"]'); // Find non-disabled "Any" or empty value option
+         const anyOption = selectElement.querySelector('option[value=""]:not([disabled])'); // Find non-disabled "Any"
          if (anyOption) {
              anyOption.selected = true;
              placeholderOpt.selected = false;
          } else {
-             placeholderOpt.selected = true; // Fallback to placeholder
+             placeholderOpt.selected = true; // Fallback to placeholder if 'Any' not applicable/present
          }
      }
 }
@@ -105,6 +97,7 @@ function populateSelectWithOptions(selectElement, optionsArray, placeholder, val
 function updateDeleteAllButtonVisibility() {
     if (criteriaContainer.children.length > 0) {
         deleteAllCriteriaBtn.classList.remove('hidden');
+        if (initialMessage) initialMessage.classList.add('hidden'); // Hide initial message if criteria exist
     } else {
         deleteAllCriteriaBtn.classList.add('hidden');
         if (initialMessage) initialMessage.classList.remove('hidden'); // Show initial message if empty
@@ -117,32 +110,43 @@ function initializeSelects() {
         console.warn("Data not ready, cannot initialize selects yet.");
         return;
     }
-    console.log("Initializing select options...");
+    console.log("Initializing select options with counts...");
 
     // Get template selects
     const pokemonTemplate = criteriaTemplates.querySelector('.pokemon-block');
     const generalTemplate = criteriaTemplates.querySelector('.general-block');
 
-    // Populate Pokémon template selects
+    // --- Populate Pokémon template selects (using new sorted data methods) ---
     // Pokemon Name
-    populateSelectWithOptions(pokemonTemplate.querySelector('.pokemon-select'), DataService.getAllPokemonNamesLower(), '-- Select Pokémon --', val => val.toLowerCase(), DataService.getOriginalCaseName, false); // No "Any" for primary Pokemon select
-    // Item (Use items from dataset only)
-    populateSelectWithOptions(pokemonTemplate.querySelector('.item-select'), DataService.getItemsInDatasetLower(), '-- Items --');
-    // Ability (Initially populate with all from dataset, will be filtered on Pokemon selection)
-    populateSelectWithOptions(pokemonTemplate.querySelector('.ability-select'), DataService.getAbilitiesInDatasetLower(), '-- Abilities --');
-    // Tera
-    populateSelectWithOptions(pokemonTemplate.querySelector('.tera-select'), DataService.getAllTeraTypesLower(), '-- Tera Types --');
-    // Moves (Initially populate with all from dataset, will be filtered on Pokemon selection)
-    const moveSelects = pokemonTemplate.querySelectorAll('.move-select');
-    moveSelects.forEach(select => populateSelectWithOptions(select, DataService.getMovesInDatasetLower(), '-- Moves --'));
+    populateSelectWithOptions(pokemonTemplate.querySelector('.pokemon-select'), DataService.getPokemonSortedByCount(), '-- Select Pokémon --', false); // No 'Any' for primary Pokemon select
 
-    // Store options for general templates (use *InDataset lists for consistency)
+    // Item (Sorted by count)
+    populateSelectWithOptions(pokemonTemplate.querySelector('.item-select'), DataService.getItemsSortedByCount(), '-- Any Item --', true);
+
+    // Ability (Initially populate with ALL abilities sorted by count, will be filtered on Pokemon selection)
+    populateSelectWithOptions(pokemonTemplate.querySelector('.ability-select'), DataService.getAbilitiesSortedByCount(), '-- Any Ability --', true);
+
+    // Tera (Use alphabetical static list for now, or implement tera counting if needed)
+    // Let's keep Tera alphabetical for simplicity, as counts might not be that informative here.
+    populateSelectWithOptions(
+        pokemonTemplate.querySelector('.tera-select'),
+        DataService.getAllTeraTypesLower().map(t => ({ key: t, display: t.charAt(0).toUpperCase() + t.slice(1) })), // Format for consistency
+        '-- Any Tera Type --',
+        true
+    );
+
+    // Moves (Initially populate with ALL moves sorted by count, will be filtered on Pokemon selection)
+    const moveSelects = pokemonTemplate.querySelectorAll('.move-select');
+    moveSelects.forEach(select => populateSelectWithOptions(select, DataService.getMovesSortedByCount(), '-- Any Move --', true));
+
+    // Store options for general templates (use sorted data methods)
     generalSelectOptions = {
-         item: DataService.getItemsInDatasetLower(),
-         ability: DataService.getAbilitiesInDatasetLower(),
-         move: DataService.getMovesInDatasetLower(),
-         tera: DataService.getAllTeraTypesLower(),
-         role: DataService.getAllRolesLower(),
+         item: DataService.getItemsSortedByCount(),
+         ability: DataService.getAbilitiesSortedByCount(),
+         move: DataService.getMovesSortedByCount(),
+         // Use alphabetical for Tera/Role unless counts are desired
+         tera: DataService.getAllTeraTypesLower().map(t => ({ key: t, display: t.charAt(0).toUpperCase() + t.slice(1) })),
+         role: DataService.getAllRolesLower().map(r => ({ key: r, display: r.charAt(0).toUpperCase() + r.slice(1) })),
     };
 
     console.log("Select options initialized.");
@@ -168,12 +172,15 @@ addCriteriaBtn.title = "Loading data...";
 
 // Show/Hide Add Criteria Menu
 addCriteriaBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    addCriteriaMenu.classList.toggle('hidden');
+    e.stopPropagation(); // Prevent click from immediately propagating to document listener
+    if (!addCriteriaBtn.disabled) { // Only toggle if not disabled
+        addCriteriaMenu.classList.toggle('hidden');
+    }
 });
 
 // Hide menu when clicking outside
 document.addEventListener('click', (e) => {
+    // Check if the click is outside the button AND outside the menu
     if (!addCriteriaBtn.contains(e.target) && !addCriteriaMenu.contains(e.target)) {
         addCriteriaMenu.classList.add('hidden');
     }
@@ -182,11 +189,11 @@ document.addEventListener('click', (e) => {
 // Handle adding a criterion when a menu item is clicked
 addCriteriaMenu.addEventListener('click', (e) => {
     e.preventDefault();
-    e.stopPropagation();
+    e.stopPropagation(); // Prevent triggering document listener
     const target = e.target.closest('.criteria-menu-item');
     if (target && target.dataset.type) {
         addCriteriaBlock(target.dataset.type);
-        addCriteriaMenu.classList.add('hidden');
+        addCriteriaMenu.classList.add('hidden'); // Hide menu after selection
     }
 });
 
@@ -197,42 +204,45 @@ function addCriteriaBlock(type) {
 
     if (!isDataReady) {
         console.error("Cannot add criteria: Data is not ready yet.");
-        // Optionally show a user message
+        // Optionally show a user message here
         return;
     }
 
     if (type === 'pokemon') {
         template = criteriaTemplates.querySelector('.pokemon-block');
         newBlock = template.cloneNode(true);
-        // Initial population uses the pre-filled template (all pokemon, all dataset abilities/moves)
-    } else { // General types
+        // The template is already populated correctly by initializeSelects
+        // We might need to re-run populate on clone if deep clone doesn't copy options correctly in all browsers, but usually does.
+        // Let's assume clone works for now. If dropdowns are empty, uncomment below:
+        // initializePokemonBlockSelects(newBlock); // You'd need to create this helper function
+    } else { // General types (item, ability, move, tera, role)
         template = criteriaTemplates.querySelector('.general-block');
         newBlock = template.cloneNode(true);
-        newBlock.dataset.type = type; // Set specific type
+        newBlock.dataset.type = type; // Set specific type for the block
 
         const label = newBlock.querySelector('.criteria-label');
         const select = newBlock.querySelector('.value-select');
-        const options = generalSelectOptions[type] || [];
+        const options = generalSelectOptions[type] || []; // Get pre-sorted options
         const placeholder = `-- Select ${type.charAt(0).toUpperCase() + type.slice(1)} --`;
 
         label.textContent = `General ${type.charAt(0).toUpperCase() + type.slice(1)}`;
-        // Use addAnyOption=false because the placeholder serves as "Any" for general criteria
-        populateSelectWithOptions(select, options, placeholder, undefined, undefined, false);
+
+        // Populate the general select
+        // For general blocks, the placeholder IS the 'Any' selection (value="")
+        populateSelectWithOptions(select, options, placeholder, false); // addAnyOption = false
+
         newBlock.querySelector('.remove-criteria-btn').title = `Remove ${type} criterion`;
     }
 
+    // Add remove functionality AFTER cloning and populating
     const removeBtn = newBlock.querySelector('.remove-criteria-btn');
     removeBtn.addEventListener('click', () => {
         newBlock.remove();
-        // Hide initial message if container becomes empty
-        if(criteriaContainer.children.length === 0 && initialMessage) {
-             initialMessage.classList.remove('hidden');
-        }
+        updateDeleteAllButtonVisibility(); // Check if container is now empty
     });
 
     criteriaContainer.appendChild(newBlock);
-    if(initialMessage) initialMessage.classList.add('hidden'); // Hide initial message
-    updateDeleteAllButtonVisibility();
+    updateDeleteAllButtonVisibility(); // Ensure button visibility is correct
 }
 
 // --- Event Listener for Pokémon Selection Change ---
@@ -240,32 +250,33 @@ criteriaContainer.addEventListener('change', (event) => {
     // Check if the changed element is a pokemon-select inside a pokemon-block
     if (event.target.classList.contains('pokemon-select') && event.target.closest('.pokemon-block')) {
         const pokemonBlock = event.target.closest('.pokemon-block');
-        const selectedPokemonName = event.target.value; // This is already lowercase
+        const selectedPokemonNameLower = event.target.value; // This is the lowercase key
 
         const abilitySelect = pokemonBlock.querySelector('.ability-select');
         const moveSelects = pokemonBlock.querySelectorAll('.move-select');
 
-        if (!selectedPokemonName) {
-            // If "-- Select Pokémon --" is chosen, repopulate with all dataset abilities/moves
-            if (abilitySelect) populateSelectWithOptions(abilitySelect, DataService.getAbilitiesInDatasetLower(), 'Any Ability');
-            moveSelects.forEach(select => populateSelectWithOptions(select, DataService.getMovesInDatasetLower(), 'Any Move'));
+        if (!selectedPokemonNameLower) {
+            // If "-- Select Pokémon --" is chosen, repopulate with ALL abilities/moves sorted by count
+            if (abilitySelect) populateSelectWithOptions(abilitySelect, DataService.getAbilitiesSortedByCount(), '-- Any Ability --', true);
+            moveSelects.forEach(select => populateSelectWithOptions(select, DataService.getMovesSortedByCount(), '-- Any Move --', true));
         } else {
-            // Fetch and populate specific abilities
-            const abilities = DataService.getAbilitiesForPokemon(selectedPokemonName);
-            if (abilitySelect) populateSelectWithOptions(abilitySelect, abilities, 'Any Ability');
+            // Fetch and populate specific abilities, sorted by global count
+            const abilities = DataService.getAbilitiesForPokemonSorted(selectedPokemonNameLower);
+            if (abilitySelect) populateSelectWithOptions(abilitySelect, abilities, '-- Any Ability --', true);
 
-            // Fetch and populate specific moves
-            const moves = DataService.getMovesForPokemon(selectedPokemonName);
-            moveSelects.forEach(select => populateSelectWithOptions(select, moves, 'Any Move'));
+            // Fetch and populate specific moves, sorted by global count
+            const moves = DataService.getMovesForPokemonSorted(selectedPokemonNameLower);
+            moveSelects.forEach(select => populateSelectWithOptions(select, moves, '-- Any Move --', true));
         }
     }
 });
 
 // --- Event Listener for Delete All Button ---
 deleteAllCriteriaBtn.addEventListener('click', () => {
-    if (confirm('Are you sure you want to remove all criteria?')) { // Optional confirmation
+    // Optional confirmation dialog
+    if (confirm('Are you sure you want to remove all criteria?')) {
         criteriaContainer.innerHTML = ''; // Clear the container
-        updateDeleteAllButtonVisibility(); // Hide the button and show initial message
+        updateDeleteAllButtonVisibility(); // Hide the button and potentially show initial message
     }
 });
 
@@ -283,10 +294,10 @@ const otherTeamsList = document.getElementById("other-teams-list");
 const searchText = document.getElementById("search-text");
 const loadingSpinner = document.getElementById("loading-spinner");
 
-let currentSearchResults = [];
-let currentMainTeamIndex = -1;
+let currentSearchResults = []; // Stores the raw team data from the last search
+let currentMainTeamIndex = -1; // Index in currentSearchResults for the main display
 
-// Function to gather the structured query from the UI (No changes needed here)
+// Function to gather the structured query from the UI
 function buildQueryFromUI() {
     const criteria = [];
     const blocks = criteriaContainer.querySelectorAll('.criteria-block');
@@ -296,9 +307,11 @@ function buildQueryFromUI() {
         const criterion = { type };
 
         if (type === 'pokemon') {
-            const pokemonName = block.querySelector('.pokemon-select').value;
+            // Pokemon name is essential for this type
+            const pokemonName = block.querySelector('.pokemon-select').value; // lowercase key
             if (pokemonName) {
                  criterion.pokemonName = pokemonName;
+                 // Get values from sub-selects, empty string "" means 'Any' / not specified
                  criterion.item = block.querySelector('.item-select').value || null;
                  criterion.ability = block.querySelector('.ability-select').value || null;
                  criterion.tera = block.querySelector('.tera-select').value || null;
@@ -306,154 +319,201 @@ function buildQueryFromUI() {
                  criterion.move2 = block.querySelector('[data-field="move2"]').value || null;
                  criterion.move3 = block.querySelector('[data-field="move3"]').value || null;
                  criterion.move4 = block.querySelector('[data-field="move4"]').value || null;
+                 // Only add criterion if a pokemon is actually selected
                  criteria.push(criterion);
             }
-        } else { // General criteria
-            const value = block.querySelector('.value-select').value;
-            if (value) {
+        } else { // General criteria (item, ability, move, tera, role)
+            const value = block.querySelector('.value-select').value; // lowercase key
+            if (value) { // Only add if a specific value is selected (not the placeholder)
                 criterion.value = value;
                 criteria.push(criterion);
             }
         }
     });
+    console.log("Built Query:", criteria); // Log the built query for debugging
     return criteria;
 }
 
 
-// Function to trigger the search process (No changes needed here)
+// Function to trigger the search process
 async function triggerSearch() {
     const queryCriteria = buildQueryFromUI();
 
+    // If no valid criteria were added, show a message and stop
     if (queryCriteria.length === 0) {
         teamTitle.textContent = 'Build a Query';
-        teamContainer.innerHTML = `<div class="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">Add criteria using the button above to start searching for teams.</div>`;
+        teamContainer.innerHTML = `<div class="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">Add criteria using the button above to start searching for teams. Select a Pokémon or a general item/ability/move/tera/role.</div>`;
         copyAllBtn.classList.add('hidden');
         otherTeamsContainer.classList.add('hidden');
+        if (initialMessage) initialMessage.classList.remove('hidden'); // Ensure initial message is visible
         return;
     }
 
-    if (initialMessage) initialMessage.classList.add('hidden');
+    // --- UI updates for loading state ---
+    if (initialMessage) initialMessage.classList.add('hidden'); // Hide initial message during search
     searchText.textContent = "Searching";
     loadingSpinner.classList.remove("hidden");
     searchBtn.disabled = true;
-    addCriteriaBtn.disabled = true;
-    teamContainer.innerHTML = '';
+    addCriteriaBtn.disabled = true; // Disable adding more criteria during search
+    deleteAllCriteriaBtn.disabled = true; // Disable clearing during search
+
+    // Clear previous results visually
+    teamContainer.innerHTML = ''; // Clear main team grid
     teamTitle.textContent = 'Loading Team...';
     copyAllBtn.classList.add('hidden');
     otherTeamsContainer.classList.add('hidden');
     otherTeamsTitle.classList.add('hidden');
     otherTeamsList.innerHTML = '';
+
+    // Reset internal state
     currentSearchResults = [];
     currentMainTeamIndex = -1;
 
     console.log("Starting search with criteria:", queryCriteria);
-    await new Promise(resolve => setTimeout(resolve, 100)); // Brief pause
+    // Brief pause allows UI to update before potentially blocking work
+    await new Promise(resolve => setTimeout(resolve, 50));
 
     try {
+        // Call the generator function (from generate.js)
         const teams = await window.generatePokepaste(queryCriteria);
 
         if (!teams || teams.length === 0) {
             teamTitle.textContent = 'No Results';
             teamContainer.innerHTML = `<div class="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">No teams found matching your query. Try adjusting the criteria.</div>`;
-            otherTeamsContainer.classList.add('hidden');
+            otherTeamsContainer.classList.add('hidden'); // Ensure other teams is hidden
         } else {
-             currentSearchResults = teams;
-             currentMainTeamIndex = 0;
-             updateMainTeamDisplay(currentSearchResults[currentMainTeamIndex]);
-             if (currentSearchResults.length > 1) updateOtherTeamsDisplay();
-             else otherTeamsContainer.classList.add('hidden');
+             currentSearchResults = teams; // Store results
+             currentMainTeamIndex = 0; // Display the first best match initially
+             updateMainTeamDisplay(currentSearchResults[currentMainTeamIndex]); // Update main display
+
+             // If there are more teams than the one displayed, show the 'other matches' section
+             if (currentSearchResults.length > 1) {
+                updateOtherTeamsDisplay();
+             } else {
+                otherTeamsContainer.classList.add('hidden'); // Hide if only one match
+             }
         }
 
     } catch (error) {
         console.error("Error during search:", error);
         teamTitle.textContent = 'Error';
-        teamContainer.innerHTML = `<div class="p-4 text-center text-red-500 dark:text-red-400 text-sm">An error occurred during the search. Please check the console. <br><span class="text-xs">${error.message}</span></div>`;
+        teamContainer.innerHTML = `<div class="p-4 text-center text-red-500 dark:text-red-400 text-sm">An error occurred during the search. Please check the console for details. <br><span class="text-xs">${error.message}</span></div>`;
         copyAllBtn.classList.add('hidden');
         otherTeamsContainer.classList.add('hidden');
+        // Reset state on error
         currentSearchResults = [];
         currentMainTeamIndex = -1;
     } finally {
+        // --- Restore UI after search completes (success or error) ---
         searchText.textContent = "Search";
         loadingSpinner.classList.add("hidden");
         searchBtn.disabled = false;
+        // Only re-enable Add button if data is ready
         addCriteriaBtn.disabled = !isDataReady;
+        deleteAllCriteriaBtn.disabled = false; // Re-enable clear button
     }
 }
 
 // Event listener for the search button
 searchBtn.addEventListener("click", triggerSearch);
 
-// --- Display Functions (Mostly Unchanged) ---
+// --- Display Functions ---
 
 function updateMainTeamDisplay(team) {
-    if (!team) return;
+    if (!team) {
+        console.error("updateMainTeamDisplay called with invalid team data");
+        teamTitle.textContent = 'Error Loading Team';
+        teamContainer.innerHTML = `<div class="p-4 text-center text-red-500 dark:text-red-400 text-sm">Could not display team data.</div>`;
+        copyAllBtn.classList.add('hidden');
+        return;
+    }
+    // Clean up filename for display
     teamTitle.textContent = team.filename.split('.')[0].replace(/_/g, ' ');
-    displayTeamInGrid(team, teamContainer);
-    copyAllBtn.classList.remove('hidden');
+    displayTeamInGrid(team, teamContainer); // Render the grid
+    copyAllBtn.classList.remove('hidden'); // Show copy button
+    // Update the copy button's click handler to use the currently displayed team
     copyAllBtn.onclick = () => copyTeamToClipboard(team);
 }
 
 function updateOtherTeamsDisplay() {
-    otherTeamsList.innerHTML = '';
+    otherTeamsList.innerHTML = ''; // Clear previous previews
+    // Get all teams *except* the one currently in the main display
     const otherTeams = currentSearchResults.filter((_, index) => index !== currentMainTeamIndex);
 
     if (otherTeams.length > 0) {
-        otherTeamsContainer.classList.remove('hidden');
+        otherTeamsContainer.classList.remove('hidden'); // Show the container
         otherTeamsTitle.textContent = `${otherTeams.length} other potential match${otherTeams.length > 1 ? 'es' : ''}:`;
-        otherTeamsTitle.classList.remove('hidden');
+        otherTeamsTitle.classList.remove('hidden'); // Show the title
 
+        // Create previews for *all* teams in the results, highlighting the current one maybe? No, just list others.
         currentSearchResults.forEach((team, index) => {
-            if (index === currentMainTeamIndex) return;
+            if (index === currentMainTeamIndex) return; // Skip the one already displayed
 
             const teamPreview = document.createElement('div');
-            teamPreview.className = 'other-team-preview border p-1.5 rounded-sm cursor-pointer';
+            // Add Tailwind classes for styling and make it interactive
+            teamPreview.className = 'other-team-preview border p-1.5 rounded-sm cursor-pointer transition-colors duration-150 ease-in-out bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600';
             teamPreview.title = `Click to view: ${team.filename.split('.')[0].replace(/_/g, ' ')}`;
-            teamPreview.dataset.teamIndex = index;
+            teamPreview.dataset.teamIndex = index; // Store the index to load it later
 
+            // Team Name Preview
             const teamName = document.createElement('div');
-            teamName.className = 'text-xs font-semibold truncate mb-1 team-name-preview';
+            teamName.className = 'text-xs font-semibold truncate mb-1 team-name-preview text-gray-700 dark:text-gray-300';
             teamName.textContent = team.filename.split('.')[0].replace(/_/g, ' ');
             teamPreview.appendChild(teamName);
 
+            // Sprite Preview Container
             const spriteContainer = document.createElement('div');
-            spriteContainer.className = 'flex flex-wrap gap-1 justify-center';
+            spriteContainer.className = 'flex flex-wrap gap-1 justify-center items-center'; // Center sprites
+            // Show first 6 pokemon sprites (or fewer if team has less)
             team.pokemons.slice(0, 6).forEach(pokemon => {
-                 if (!pokemon) return;
+                 if (!pokemon) return; // Skip if pokemon data is null in the array
                 const img = document.createElement('img');
-                img.src = pokemon.sprite || 'static/assets/pokeball_icon.png';
-                img.alt = pokemon.name || '';
-                img.className = 'w-5 h-5 object-contain';
+                img.src = pokemon.sprite || 'static/assets/pokeball_icon.png'; // Use pokeball as fallback
+                img.alt = pokemon.name || ''; // Alt text
+                img.className = 'w-5 h-5 object-contain inline-block'; // Small sprites
+                // Basic error handling for broken sprite links
                 img.onerror = () => { img.src = 'static/assets/pokeball_icon.png'; };
                 spriteContainer.appendChild(img);
             });
             teamPreview.appendChild(spriteContainer);
 
+            // Click listener to switch the main display
             teamPreview.addEventListener('click', () => {
                 const clickedIndex = parseInt(teamPreview.dataset.teamIndex, 10);
-                currentMainTeamIndex = clickedIndex;
-                updateMainTeamDisplay(currentSearchResults[currentMainTeamIndex]);
-                updateOtherTeamsDisplay();
-                teamSheetContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                if (!isNaN(clickedIndex) && clickedIndex < currentSearchResults.length) {
+                    currentMainTeamIndex = clickedIndex; // Update the main index
+                    updateMainTeamDisplay(currentSearchResults[currentMainTeamIndex]); // Update main display
+                    updateOtherTeamsDisplay(); // Re-render the 'other teams' list (to remove the one just clicked)
+                    // Scroll the main team sheet into view smoothly
+                    teamSheetContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                    console.error("Invalid team index clicked:", teamPreview.dataset.teamIndex);
+                }
             });
 
-            otherTeamsList.appendChild(teamPreview);
+            otherTeamsList.appendChild(teamPreview); // Add the preview to the list
         });
     } else {
+        // Hide the section if no other teams are left
         otherTeamsContainer.classList.add('hidden');
         otherTeamsTitle.classList.add('hidden');
     }
 }
 
+
+// Function to display team details in the grid (Excel-like)
 function displayTeamInGrid(team, container) {
     container.innerHTML = ''; // Clear previous content
 
+    // Handle cases where team data might be missing or invalid
     if (!team || !team.pokemons || team.pokemons.length === 0) {
         container.innerHTML = `<div class="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">Team data is empty or invalid.</div>`;
         return;
     }
 
+    // Create Header Row
     const headerRow = document.createElement('div');
-    headerRow.className = 'excel-row header-row';
+    headerRow.className = 'excel-row header-row'; // Sticky header styles from CSS
     headerRow.innerHTML = `
         <div class="excel-cell font-semibold">Sprite</div>
         <div class="excel-cell font-semibold">Pokémon</div>
@@ -467,114 +527,154 @@ function displayTeamInGrid(team, container) {
     `;
     container.appendChild(headerRow);
 
+    // Create Data Rows for each Pokémon
     team.pokemons.forEach((pokemon, index) => {
-        if (!pokemon) return; // Skip if pokemon data is somehow null
+        if (!pokemon) return; // Skip if pokemon data is somehow null in the array
 
         const row = document.createElement('div');
-        // Ensure dark mode class toggling works correctly
+        // Apply alternating background colors based on index and theme
         const isDarkMode = document.documentElement.classList.contains('dark');
         const altClass = index % 2 === 0
-            ? (isDarkMode ? 'dark:bg-gray-800' : 'bg-white')
-            : (isDarkMode ? 'dark:bg-excel-dark-alt' : 'bg-gray-50');
-        row.className = `excel-row ${altClass}`;
+            ? (isDarkMode ? 'dark:bg-gray-800' : 'bg-white') // Even rows
+            : (isDarkMode ? 'dark:bg-excel-dark-alt' : 'bg-gray-50'); // Odd rows (using custom dark alt)
+        row.className = `excel-row ${altClass}`; // Basic row structure + alternating color
 
 
-        const itemName = pokemon.item && pokemon.item !== "None" ? pokemon.item : null;
+        // Prepare data points with fallbacks
+        const itemName = pokemon.item; // Already processed to be null if "None" or missing in simplifyData
         const itemSpriteUrl = itemName
             ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${itemName.toLowerCase().replace(/ /g, '-')}.png`
             : null;
+        const teraType = pokemon.tera_type; // Already processed to be null if invalid/missing
+        const teraClass = teraType ? `type-${teraType.toLowerCase()}` : 'type-none'; // CSS class for badge color
 
-        const teraType = pokemon.tera_type && pokemon.tera_type !== "None" ? pokemon.tera_type : "None";
-        const teraClass = teraType !== "None" ? `type-${teraType.toLowerCase()}` : 'type-none';
-
-        // Ensure moves array exists and pad with placeholders if necessary
-        const moves = [...(pokemon.moves || [])];
+        // Ensure moves array exists and pad with placeholders if necessary for display consistency
+        const moves = [...(pokemon.moves || [])]; // Copy moves array or start with empty
         while (moves.length < 4) {
-            moves.push({ name: '-', type: 'unknown' }); // Use object structure for consistency
+            moves.push({ name: '-', type: 'unknown' }); // Add placeholder move objects
         }
 
-        // Item Cell HTML generation with fallback
-        let itemCellHTML = `<span class="text-gray-400 dark:text-gray-500 italic text-xs">None</span>`;
+        // --- Generate HTML for complex cells ---
+
+        // Item Cell: Display image with text fallback
+        let itemCellHTML = `<span class="text-gray-400 dark:text-gray-500 italic text-xs">None</span>`; // Default for no item
         if (itemName) {
-            // Basic sanitization for alt/title attributes
+            // Basic sanitization for alt/title attributes to prevent HTML injection issues
             const safeItemName = itemName.replace(/"/g, '"').replace(/'/g, '"');
             itemCellHTML = `
                 <img src="${itemSpriteUrl}" alt="${safeItemName}" class="w-4 h-4 mr-1 inline-block object-contain"
                      onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';"
                      onload="this.style.display='inline'; this.nextElementSibling.style.display='none';"
                      title="${safeItemName}">
-                <span class="item-fallback-text" style="display:none;">${itemName /* Use original case here */}</span>
+                <span class="item-fallback-text" style="display:none;">${itemName /* Use original case */}</span>
             `;
         }
 
-        // Construct row innerHTML
+        // Tera Cell: Display badge or "None"
+        const teraCellHTML = teraType
+            ? `<span class="tera-badge-excel ${teraClass}">${teraType}</span>`
+            : `<span class="text-gray-400 dark:text-gray-500 italic text-xs">None</span>`;
+
+        // Move Cells: Display type badge and name, or "-" placeholder
+        const moveCellsHTML = moves.slice(0, 4).map(move => {
+            const moveName = move?.name || '-';
+            const moveType = move?.type?.toLowerCase() || 'unknown';
+            const displayType = moveType !== 'unknown' ? moveType.charAt(0).toUpperCase() + moveType.slice(1) : 'Unknown';
+            const safeMoveName = moveName.replace(/"/g, '"').replace(/'/g, '"');
+
+            // Determine content based on whether it's a real move or placeholder
+            const moveContent = moveName !== '-' ? `
+                <span class="type-badge-excel type-${moveType} mr-1" title="${displayType} Type">${moveType.substring(0, 3).toUpperCase() || '?'}</span>
+                ${safeMoveName /* Use original case */}
+            ` : `
+                <span class="text-gray-400 dark:text-gray-500">-</span>
+            `;
+
+            return `<div class="excel-cell cell-move text-xs">${moveContent}</div>`;
+        }).join("");
+
+
+        // --- Construct full row innerHTML ---
         row.innerHTML = `
             <div class="excel-cell cell-sprite">
                 <img src="${pokemon.sprite || 'static/assets/pokeball_icon.png'}" alt="${pokemon.name || 'Pokemon'}" class="w-8 h-8 mx-auto object-contain" onerror="this.onerror=null; this.src='static/assets/pokeball_icon.png';">
             </div>
             <div class="excel-cell font-medium cell-wrap">${pokemon.name || 'Unknown'}</div>
             <div class="excel-cell cell-item">${itemCellHTML}</div>
-            <div class="excel-cell text-xs cell-wrap">${pokemon.ability || 'None'}</div>
-            <div class="excel-cell cell-tera">
-                ${teraType !== "None" ? `<span class="tera-badge-excel ${teraClass}">${teraType}</span>` : `<span class="text-gray-400 dark:text-gray-500 italic text-xs">None</span>`}
-            </div>
-            ${moves.slice(0, 4).map(move => {
-                const moveName = move?.name || '-';
-                const moveType = move?.type?.toLowerCase() || 'unknown';
-                const displayType = moveType !== 'unknown' ? moveType.charAt(0).toUpperCase() + moveType.slice(1) : 'Unknown';
-                const safeMoveName = moveName.replace(/"/g, '"').replace(/'/g, '"');
-
-                return `
-                <div class="excel-cell cell-move text-xs">
-                    ${moveName !== '-' ? `
-                        <span class="type-badge-excel type-${moveType} mr-1" title="${displayType} Type">${moveType.substring(0, 3).toUpperCase() || '?'}</span>
-                        ${safeMoveName /* Use original case */}
-                    ` : `
-                        <span class="text-gray-400 dark:text-gray-500">-</span>
-                    `}
-                </div>
-            `}).join("")}
+            <div class="excel-cell text-xs cell-wrap">${pokemon.ability || '<span class="text-gray-400 dark:text-gray-500 italic text-xs">None</span>'}</div>
+            <div class="excel-cell cell-tera">${teraCellHTML}</div>
+            ${moveCellsHTML}
         `;
-        container.appendChild(row);
+        container.appendChild(row); // Add the completed row to the grid container
     });
 }
 
 
-// --- Utility Functions (Copy Paste Unchanged) ---
+// --- Utility Functions ---
 function copyTeamToClipboard(team) {
-    if (!team || !team.pokemons) return;
+    if (!team || !team.pokemons) {
+        console.warn("Attempted to copy invalid team data.");
+        return;
+    }
 
+    // Format the team into PokéPaste format
     const teamText = team.pokemons.map(pokemon => {
-        if (!pokemon) return "";
-         const name = pokemon.name || "Unknown";
-         const item = pokemon.item && pokemon.item !== "None" ? ` @ ${pokemon.item}` : "";
-         const ability = pokemon.ability && pokemon.ability !== "None" ? `Ability: ${pokemon.ability}` : "";
-         const tera = pokemon.tera_type && pokemon.tera_type !== "None" ? `Tera Type: ${pokemon.tera_type}` : "";
-         const moves = (pokemon.moves || [])
-             .map(m => (m && m.name && m.name !== '-') ? `- ${m.name}` : null)
-             .filter(m => m !== null);
-        let pokemonString = `${name}${item}\n`;
-        if (ability) pokemonString += `${ability}\n`;
-        if (tera) pokemonString += `${tera}\n`;
-        if (moves.length > 0) pokemonString += `${moves.join("\n")}`;
-        return pokemonString.trim();
-    }).filter(Boolean).join("\n\n");
+        if (!pokemon) return ""; // Skip null entries
 
+         // Start with name and item (if exists)
+         const name = pokemon.name || "Unknown";
+         const item = pokemon.item ? ` @ ${pokemon.item}` : ""; // Item is already null if missing/"None"
+
+         // Add Ability line if exists
+         const ability = pokemon.ability ? `Ability: ${pokemon.ability}` : "";
+
+         // Add Tera Type line if exists
+         const tera = pokemon.tera_type ? `Tera Type: ${pokemon.tera_type}` : ""; // tera_type is already null if missing/invalid
+
+         // Format moves, filtering out placeholders or missing moves
+         const moves = (pokemon.moves || [])
+             .map(m => (m && m.name && m.name !== '-') ? `- ${m.name}` : null) // Get name if valid move
+             .filter(m => m !== null); // Remove null entries (placeholders)
+
+        // Construct the string for this Pokémon
+        let pokemonString = `${name}${item}\n`; // Name and Item on first line
+        if (ability) pokemonString += `${ability}\n`; // Add Ability line
+        if (tera) pokemonString += `${tera}\n`; // Add Tera line
+        if (moves.length > 0) pokemonString += `${moves.join("\n")}`; // Add Move lines
+
+        return pokemonString.trim(); // Remove leading/trailing whitespace for this entry
+    }).filter(Boolean).join("\n\n"); // Join Pokémon entries with double newline, filter out empty entries
+
+    // Use Clipboard API to copy
     navigator.clipboard.writeText(teamText).then(() => {
+        // Show success feedback message
         const message = document.getElementById("global-copy-message");
-        message.classList.add("visible");
-        if (message.timeoutId) clearTimeout(message.timeoutId);
-        message.timeoutId = setTimeout(() => { message.classList.remove("visible"); message.timeoutId = null; }, 2000);
-    }).catch(err => { console.error('Failed to copy team:', err); alert("Failed to copy team."); });
+        if (message) {
+            message.classList.add("visible");
+            // Clear previous timeout if it exists
+            if (message.timeoutId) clearTimeout(message.timeoutId);
+            // Hide message after 2 seconds
+            message.timeoutId = setTimeout(() => {
+                message.classList.remove("visible");
+                message.timeoutId = null; // Clear the stored timeout ID
+             }, 2000);
+        }
+    }).catch(err => {
+        // Handle copy failure
+        console.error('Failed to copy team:', err);
+        alert("Failed to copy Poképaste to clipboard. Check browser permissions or copy manually.");
+    });
 }
 
 // --- Initial Setup ---
-// Check if the initial message exists and show it if criteria container is empty
-if (criteriaContainer.children.length === 0 && initialMessage) {
-    initialMessage.classList.remove('hidden');
-} else if (initialMessage) {
-    initialMessage.classList.add('hidden');
+// Check if the initial message exists and manage its visibility
+if (initialMessage) {
+    if (criteriaContainer.children.length === 0) {
+        initialMessage.classList.remove('hidden');
+    } else {
+        initialMessage.classList.add('hidden');
+    }
 }
 
-updateDeleteAllButtonVisibility();
-console.log("script.js loaded.");
+updateDeleteAllButtonVisibility(); // Set initial state of the Clear All button
+console.log("script.js loaded and initialized.");

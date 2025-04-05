@@ -27,13 +27,15 @@ const ROLES = ["attacker", "physical attacker", "special attacker", "defensive",
 // --- Data Service ---
 const DataService = {
     rawData: null,
-    pokemonIndex: new Map(),
-    allItems: new Set(), // Still useful for validation potentially, contains Showdown + Dataset
-    allMoves: new Set(), // Contains Showdown + Dataset
-    allAbilities: new Set(), // Contains Showdown + Dataset
-    itemsInDataset: new Set(), // NEW: Items found ONLY in processed_data.json
-    movesInDataset: new Set(), // NEW: Moves found ONLY in processed_data.json
-    abilitiesInDataset: new Set(), // NEW: Abilities found ONLY in processed_data.json
+    pokemonIndex: new Map(), // Map<lowerCaseName, { originalCase, details, knownAbilities<Set>, knownMoves<Set>, count }>
+    itemCounts: new Map(),   // Map<lowerCaseName, { count, originalCase }>
+    moveCounts: new Map(),   // Map<lowerCaseName, { count, originalCase }>
+    abilityCounts: new Map(),// Map<lowerCaseName, { count, originalCase }>
+    teraCounts: new Map(),   // Map<lowerCaseName, { count, originalCase }> - Can add if needed, but list is static
+    // Retain sets for potential quick validation if needed later
+    allItems: new Set(),
+    allMoves: new Set(),
+    allAbilities: new Set(),
     isInitialized: false,
     dataLoadedPromise: null,
 
@@ -49,18 +51,19 @@ const DataService = {
             this.isInitialized = true;
             console.log("DataService: Initialization complete.");
             console.log(`DataService: Loaded ${this.pokemonIndex.size} unique Pokémon.`);
-            console.log(`DataService: Found ${this.itemsInDataset.size} items, ${this.movesInDataset.size} moves, ${this.abilitiesInDataset.size} abilities within the dataset.`);
+            console.log(`DataService: Counted ${this.itemCounts.size} items, ${this.moveCounts.size} moves, ${this.abilityCounts.size} abilities.`);
         } catch (error) {
             console.error("DataService: Initialization failed!", error);
             this.isInitialized = false;
+            // Reset all data structures on failure
             this.rawData = null;
             this.pokemonIndex.clear();
+            this.itemCounts.clear();
+            this.moveCounts.clear();
+            this.abilityCounts.clear();
             this.allItems.clear();
             this.allMoves.clear();
             this.allAbilities.clear();
-            this.itemsInDataset.clear();
-            this.movesInDataset.clear();
-            this.abilitiesInDataset.clear();
             throw error;
         } finally {
             this.dataLoadedPromise = null;
@@ -76,47 +79,38 @@ const DataService = {
                  throw new Error("Processed data format is invalid or empty.");
             }
             console.log(`DataService: Fetched ${this.rawData.length} teams.`);
-            this._preprocessRawData(); // This now populates pokemonIndex with known abilities/moves and the *InDataset sets
+            this._preprocessRawData(); // Count occurrences here
         } catch (error) {
             console.error('DataService: Error loading or preprocessing team data:', error);
             throw error;
         }
 
-        // Fetch Showdown data to potentially validate against a wider list if needed
-        // but UI dropdowns will primarily use *InDataset lists now.
+        // Fetching Showdown data remains useful for the global 'all*' Sets for validation
         const results = await Promise.allSettled([
             this._fetchShowdownData(SHOWDOWN_ITEMS_URL, 'BattleItems', this.allItems),
             this._fetchShowdownData(SHOWDOWN_MOVES_URL, 'BattleMovedex', this.allMoves),
             this._fetchShowdownData(SHOWDOWN_ABILITIES_URL, 'BattleAbilities', this.allAbilities)
         ]);
-
-        results.forEach((result, index) => {
-            if (result.status === 'rejected') {
-                const url = [SHOWDOWN_ITEMS_URL, SHOWDOWN_MOVES_URL, SHOWDOWN_ABILITIES_URL][index];
-                console.warn(`DataService: Failed to fetch or parse Showdown data from ${url}. Reason:`, result.reason);
-            }
-        });
-
-        // Normalize the *global* lists from Showdown/Dataset (mainly for validation)
+        // ... (rest of Showdown fetching and normalization remains the same) ...
         this.allItems = new Set([...this.allItems].map(i => i?.toLowerCase().trim().replace(/ /g, '-')).filter(Boolean));
         this.allMoves = new Set([...this.allMoves].map(m => m?.toLowerCase().trim().replace(/ /g, '-')).filter(Boolean));
         this.allAbilities = new Set([...this.allAbilities].map(a => a?.toLowerCase().trim().replace(/ /g, '-')).filter(Boolean));
 
-        // Urshifu handling remains the same, affecting pokemonIndex
+        // Urshifu handling - ensure counts are handled if forms are synthesized
          if (this.pokemonIndex.has('urshifu')) {
             const urshifuData = this.pokemonIndex.get('urshifu');
              const rapidStrikeKey = 'urshifu-rapid-strike';
              const singleStrikeKey = 'urshifu-single-strike';
+             const baseCount = urshifuData.count || 0; // Get base count
 
             if (!this.pokemonIndex.has(rapidStrikeKey)) {
                  const rapidStrikeData = JSON.parse(JSON.stringify(urshifuData)); // Deep copy
                  rapidStrikeData.originalCase = "Urshifu-Rapid-Strike";
-                 // Ensure details are updated if possible, otherwise they inherit base form's
-                 rapidStrikeData.details = rapidStrikeData.details || {}; // Ensure details object exists
+                 rapidStrikeData.details = rapidStrikeData.details || {};
                  rapidStrikeData.details.name = "Urshifu-Rapid-Strike";
-                 // Copy known abilities/moves from base if needed, though ideally preprocess finds them separately
                  rapidStrikeData.knownAbilities = new Set(urshifuData.knownAbilities);
                  rapidStrikeData.knownMoves = new Set(urshifuData.knownMoves);
+                 rapidStrikeData.count = 0; // Initialize form count, base count remains on base
                  this.pokemonIndex.set(rapidStrikeKey, rapidStrikeData);
                  console.log(`DataService: Synthesized ${rapidStrikeKey} from base Urshifu.`);
             }
@@ -127,95 +121,104 @@ const DataService = {
                 singleStrikeData.details.name = "Urshifu-Single-Strike";
                  singleStrikeData.knownAbilities = new Set(urshifuData.knownAbilities);
                  singleStrikeData.knownMoves = new Set(urshifuData.knownMoves);
+                 singleStrikeData.count = 0; // Initialize form count
                 this.pokemonIndex.set(singleStrikeKey, singleStrikeData);
                 console.log(`DataService: Synthesized ${singleStrikeKey} from base Urshifu.`);
             }
+             // Distribute base count if forms exist but base was counted? (complex - simpler to just count forms explicitly)
+             // For now, counts will reflect exactly what's in the data. If "Urshifu" is listed, it gets counted. If "Urshifu-Rapid-Strike" is listed, it gets counted.
         }
+        // ... (Synthesize base Urshifu if only forms exist - ensure count is initialized) ...
+        if (!this.pokemonIndex.has('urshifu') && (this.pokemonIndex.has('urshifu-rapid-strike') || this.pokemonIndex.has('urshifu-single-strike'))) {
+            const formKey = this.pokemonIndex.has('urshifu-rapid-strike') ? 'urshifu-rapid-strike' : 'urshifu-single-strike';
+            const form = this.pokemonIndex.get(formKey);
+            const baseData = JSON.parse(JSON.stringify(form)); // Deep copy
+            baseData.originalCase = "Urshifu";
+            baseData.details = baseData.details || {};
+            baseData.details.name = "Urshifu";
+            baseData.knownAbilities = new Set(form.knownAbilities || []);
+            baseData.knownMoves = new Set(form.knownMoves || []);
+            baseData.count = 0; // Initialize base count
+            this.pokemonIndex.set('urshifu', baseData);
+            console.log(`DataService: Synthesized base Urshifu from form ${formKey}.`);
+        }
+    },
 
-         // Ensure base Urshifu exists if forms do
-         if (!this.pokemonIndex.has('urshifu') && (this.pokemonIndex.has('urshifu-rapid-strike') || this.pokemonIndex.has('urshifu-single-strike'))) {
-             const formKey = this.pokemonIndex.has('urshifu-rapid-strike') ? 'urshifu-rapid-strike' : 'urshifu-single-strike';
-             const form = this.pokemonIndex.get(formKey);
-             const baseData = JSON.parse(JSON.stringify(form)); // Deep copy
-             baseData.originalCase = "Urshifu";
-             baseData.details = baseData.details || {};
-             baseData.details.name = "Urshifu";
-             // Initialize sets if they don't exist from the copy
-             baseData.knownAbilities = new Set(form.knownAbilities || []);
-             baseData.knownMoves = new Set(form.knownMoves || []);
-             this.pokemonIndex.set('urshifu', baseData);
-             console.log(`DataService: Synthesized base Urshifu from form ${formKey}.`);
-         }
+    _incrementCount(map, key, originalCaseValue) {
+        if (!key) return;
+        if (map.has(key)) {
+            map.get(key).count++;
+        } else {
+            map.set(key, { count: 1, originalCase: originalCaseValue });
+        }
     },
 
     _preprocessRawData() {
         if (!this.rawData) return;
-        this.itemsInDataset.clear();
-        this.movesInDataset.clear();
-        this.abilitiesInDataset.clear();
+        this.itemCounts.clear();
+        this.moveCounts.clear();
+        this.abilityCounts.clear();
         this.pokemonIndex.clear(); // Clear before reprocessing
 
         this.rawData.forEach(team => {
             team.pokemons?.forEach(p => {
                 if (!p?.name) return;
 
-                const lowerName = p.name.toLowerCase().replace(/ /g, '-'); // Normalize name
+                const lowerName = p.name.toLowerCase().replace(/ /g, '-');
                 const itemLower = p.item?.toLowerCase().trim().replace(/ /g, '-');
                 const abilityLower = p.ability?.toLowerCase().trim().replace(/ /g, '-');
 
-                // Update or create entry in pokemonIndex
+                // --- Pokémon Counting ---
                 if (!this.pokemonIndex.has(lowerName)) {
                     this.pokemonIndex.set(lowerName, {
                         originalCase: p.name,
-                        details: p, // Store details from the first encounter
+                        details: p,
                         knownAbilities: new Set(),
-                        knownMoves: new Set()
+                        knownMoves: new Set(),
+                        count: 0 // Initialize count
                     });
                 }
                 const pokemonEntry = this.pokemonIndex.get(lowerName);
+                pokemonEntry.count++; // Increment Pokémon count
 
-                // Add ability to Pokémon's known list and global dataset list
+                // --- Ability Counting ---
                 if (p.ability && abilityLower) {
                      pokemonEntry.knownAbilities.add(abilityLower);
-                     this.abilitiesInDataset.add(abilityLower); // Add raw ability for now, normalize later if needed
-                     this.allAbilities.add(p.ability); // Add original case to global list pre-normalization
+                     this._incrementCount(this.abilityCounts, abilityLower, p.ability);
+                     this.allAbilities.add(p.ability); // Still useful for the global validation Set
                 }
 
-                // Add item to global dataset list
+                // --- Item Counting ---
                 if (p.item && p.item !== "None" && itemLower) {
-                     this.itemsInDataset.add(itemLower);
-                     this.allItems.add(p.item); // Add original case to global list pre-normalization
+                     this._incrementCount(this.itemCounts, itemLower, p.item);
+                     this.allItems.add(p.item); // Still useful for global validation Set
                 }
 
-                // Add moves to Pokémon's known list and global dataset list
+                // --- Move Counting ---
                 if (p.moves) {
                     p.moves.forEach(move => {
                         const moveName = (typeof move === 'object' ? move.name : move);
                         const moveNameLower = moveName?.toLowerCase().trim().replace(/ /g, '-');
                         if (moveName && moveName !== '-' && moveNameLower) {
                              pokemonEntry.knownMoves.add(moveNameLower);
-                             this.movesInDataset.add(moveNameLower);
-                             this.allMoves.add(moveName); // Add original case to global list pre-normalization
+                             this._incrementCount(this.moveCounts, moveNameLower, moveName);
+                             this.allMoves.add(moveName); // Still useful for global validation Set
                         }
                     });
+                }
+
+                // --- Tera Counting (Optional, but consistent) ---
+                if (p.tera_type && TERA_TYPES.includes(p.tera_type.toLowerCase())) {
+                    const teraLower = p.tera_type.toLowerCase();
+                    this._incrementCount(this.teraCounts, teraLower, p.tera_type);
                 }
             });
         });
 
-        // Normalize the *InDataset sets AFTER iterating through all data
-        this.itemsInDataset = new Set([...this.itemsInDataset].filter(Boolean));
-        this.movesInDataset = new Set([...this.movesInDataset].filter(Boolean));
-        this.abilitiesInDataset = new Set([...this.abilitiesInDataset].filter(Boolean));
-
-        console.log(`DataService: Preprocessing complete. Found ${this.pokemonIndex.size} unique Pokémon entries.`);
-        // Example: Log known abilities/moves for a specific Pokémon if it exists
-        // if (this.pokemonIndex.has('pikachu')) {
-        //     console.log("Pikachu known abilities:", [...this.pokemonIndex.get('pikachu').knownAbilities]);
-        //     console.log("Pikachu known moves:", [...this.pokemonIndex.get('pikachu').knownMoves]);
-        // }
+        console.log(`DataService: Preprocessing complete. Counted ${this.pokemonIndex.size} unique Pokémon entries.`);
     },
 
-
+    // ... _fetchShowdownData remains the same ...
     async _fetchShowdownData(url, exportName, targetSet) {
         // --- Fetching logic remains the same ---
         // This populates the global `allItems`, `allMoves`, `allAbilities`
@@ -231,19 +234,23 @@ const DataService = {
                 const dataBlock = match[1];
                 let parsedData = {};
                 try {
+                    // Try parsing as JSON5/relaxed JSON (more robust potentially)
+                    // Simple Function constructor for now as it worked before
                     const parseFunc = new Function(`return ${dataBlock};`);
                     parsedData = parseFunc();
                 } catch (e) {
                      console.error(`DataService: Failed to parse JSON-like structure for ${exportName} from ${url}. Error: ${e}`);
+                     // Fallback regex extraction
                      const nameRegex = /name:\s*"([^"]+)"/g;
                      let nameMatch;
                      while ((nameMatch = nameRegex.exec(dataBlock)) !== null) {
                          if (nameMatch[1]) targetSet.add(nameMatch[1]); // Add original case name
                      }
                      console.log(`DataService: Extracted names via REGEX fallback for ${exportName}.`);
-                     return;
+                     return; // Exit after fallback
                 }
 
+                // Add names from parsed data
                 for (const key in parsedData) {
                     if (parsedData[key] && parsedData[key].name) {
                         targetSet.add(parsedData[key].name); // Add original case name
@@ -256,67 +263,82 @@ const DataService = {
             }
         } catch (error) {
             console.error(`DataService: Error fetching/parsing ${url}:`, error);
+            // Don't stop initialization if Showdown fetch fails
         }
     },
 
     // --- Public Methods ---
     getTeams: () => DataService.rawData,
     getPokemonDetails: (name) => DataService.pokemonIndex.get(name?.toLowerCase())?.details,
-    getOriginalCaseName: (name) => DataService.pokemonIndex.get(name?.toLowerCase())?.originalCase || name,
+    // getOriginalCaseName: (name) => DataService.pokemonIndex.get(name?.toLowerCase())?.originalCase || name, // Use map data now
     isValidPokemon: (name) => DataService.pokemonIndex.has(name?.toLowerCase()),
-    isValidItem: (name) => DataService.allItems.has(name?.toLowerCase().replace(/ /g, '-')), // Check against global list
-    isValidMove: (name) => DataService.allMoves.has(name?.toLowerCase().replace(/ /g, '-')), // Check against global list
-    isValidAbility: (name) => DataService.allAbilities.has(name?.toLowerCase().replace(/ /g, '-')), // Check against global list
+    isValidItem: (name) => DataService.allItems.has(name?.toLowerCase().replace(/ /g, '-')),
+    isValidMove: (name) => DataService.allMoves.has(name?.toLowerCase().replace(/ /g, '-')),
+    isValidAbility: (name) => DataService.allAbilities.has(name?.toLowerCase().replace(/ /g, '-')),
     isValidTeraType: (name) => TERA_TYPES.includes(name?.toLowerCase()),
     isValidRole: (name) => ROLES.includes(name?.toLowerCase()),
 
-    // --- Methods for Populating Selects ---
-    getAllPokemonNamesLower: () => [...DataService.pokemonIndex.keys()].sort(),
-    // Returns only items found in the dataset, sorted
-    getItemsInDatasetLower: () => [...DataService.itemsInDataset].sort(),
-    // Returns only moves found in the dataset, sorted (for general move criteria)
-    getMovesInDatasetLower: () => [...DataService.movesInDataset].sort(),
-     // Returns only abilities found in the dataset, sorted (for general ability criteria)
-    getAbilitiesInDatasetLower: () => [...DataService.abilitiesInDataset].sort(),
-    getAllTeraTypesLower: () => [...TERA_TYPES].sort(),
-    getAllRolesLower: () => [...ROLES].sort(),
+    // --- NEW Methods for Populating Selects with Counts ---
 
-    // NEW: Get specific abilities/moves for a given Pokémon
-    getAbilitiesForPokemon: (name) => {
-        const pokemonData = DataService.pokemonIndex.get(name?.toLowerCase());
-        return pokemonData && pokemonData.knownAbilities
-            ? [...pokemonData.knownAbilities].sort()
-            : []; // Return empty array if pokemon not found or has no known abilities
-    },
-    getMovesForPokemon: (name) => {
-        const pokemonData = DataService.pokemonIndex.get(name?.toLowerCase());
-        return pokemonData && pokemonData.knownMoves
-            ? [...pokemonData.knownMoves].sort()
-            : []; // Return empty array if pokemon not found or has no known moves
+    /**
+     * Generic helper to get sorted data from a count map.
+     * @param {Map<string, {count: number, originalCase: string}>} countMap
+     * @returns {Array<{key: string, display: string, count: number}>} Sorted array
+     */
+    _getSortedDataFromMap(countMap) {
+        return Array.from(countMap.entries())
+            .map(([key, { count, originalCase }]) => ({
+                key: key, // lowercase key for option value
+                display: `${originalCase} (${count})`, // Formatted display text
+                count: count
+            }))
+            .sort((a, b) => b.count - a.count); // Sort descending by count
     },
 
-    // Helper to get original casing for display in selects
-    getOriginalCaseForSelect(type, value) {
-         const lowerValue = value?.toLowerCase().replace(/ /g, '-'); // Ensure consistent format for lookup/capitalization
-         if (!lowerValue) return value; // Return original if no lower value
+    /**
+     * Gets sorted Pokémon data.
+     * @returns {Array<{key: string, display: string, count: number}>} Sorted array
+     */
+    getPokemonSortedByCount() {
+        return Array.from(this.pokemonIndex.entries())
+             .map(([key, { count, originalCase }]) => ({
+                 key: key,
+                 display: `${originalCase} (${count})`,
+                 count: count
+             }))
+             .sort((a, b) => b.count - a.count);
+    },
 
-        switch(type) {
-            case 'pokemon':
-                return this.getOriginalCaseName(lowerValue); // Use existing method which checks pokemonIndex
-            case 'item':
-            case 'ability':
-            case 'move':
-                 // Attempt to find original case from pokemonIndex details if possible (more accurate for dataset items)
-                 // This is tricky because we only have the lowerValue ID here.
-                 // A simple capitalization is often sufficient for display.
-                return lowerValue.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-            case 'tera':
-            case 'role':
-                // Simple capitalization for these known lists
-                return lowerValue.charAt(0).toUpperCase() + lowerValue.slice(1);
-            default: return value; // Fallback
-        }
-    }
+    getItemsSortedByCount: () => DataService._getSortedDataFromMap(DataService.itemCounts),
+    getMovesSortedByCount: () => DataService._getSortedDataFromMap(DataService.moveCounts),
+    getAbilitiesSortedByCount: () => DataService._getSortedDataFromMap(DataService.abilityCounts),
+    getTerasSortedByCount: () => DataService._getSortedDataFromMap(DataService.teraCounts), // If tera counting is used
+    getAllTeraTypesLower: () => [...TERA_TYPES].sort(), // Keep alphabetical for static lists? Or count? Let's stick to alpha for static.
+    getAllRolesLower: () => [...ROLES].sort(), // Keep alphabetical for static lists
+
+    // NEW: Get specific abilities/moves for a given Pokémon, SORTED BY GLOBAL COUNT
+    getAbilitiesForPokemonSorted(pokemonNameLower) {
+        const pokemonData = this.pokemonIndex.get(pokemonNameLower);
+        if (!pokemonData || !pokemonData.knownAbilities) return [];
+
+        const knownAbilities = pokemonData.knownAbilities; // Set of lowerCase ability names
+        return this.getAbilitiesSortedByCount()
+            .filter(abilityData => knownAbilities.has(abilityData.key));
+            // Already sorted by global count, just filter
+    },
+
+    getMovesForPokemonSorted(pokemonNameLower) {
+        const pokemonData = this.pokemonIndex.get(pokemonNameLower);
+        if (!pokemonData || !pokemonData.knownMoves) return [];
+
+        const knownMoves = pokemonData.knownMoves; // Set of lowerCase move names
+        return this.getMovesSortedByCount()
+            .filter(moveData => knownMoves.has(moveData.key));
+             // Already sorted by global count, just filter
+    },
+
+    // getOriginalCaseForSelect is likely no longer needed if display text is pre-formatted
+    // getOriginalCaseForSelect(type, value) { ... } // Can be removed or commented out
 };
 
 // --- Team Matcher ---
@@ -393,7 +415,8 @@ const TeamMatcher = {
     // No changes needed below this line in TeamMatcher
     _checkSinglePokemonMatch(pokemon, pokemonCriterion) {
         if (!pokemon || !pokemonCriterion || pokemon.name?.toLowerCase().replace(/ /g, '-') !== pokemonCriterion.pokemonName?.toLowerCase()) return false;
-        if (!pokemonCriterion.pokemonName) return false;
+        if (!pokemonCriterion.pokemonName) return false; // Must select a pokemon
+        // Allow 'Any' (null/empty string) for sub-criteria
         if (pokemonCriterion.item && pokemon.item?.toLowerCase().replace(/ /g, '-') !== pokemonCriterion.item) return false;
         if (pokemonCriterion.ability && pokemon.ability?.toLowerCase().replace(/ /g, '-') !== pokemonCriterion.ability) return false;
         if (pokemonCriterion.tera && pokemon.tera_type?.toLowerCase() !== pokemonCriterion.tera) return false;
@@ -403,17 +426,21 @@ const TeamMatcher = {
             const pokemonMovesLower = pokemon.moves?.map(m => (typeof m === 'object' ? m.name : m)?.toLowerCase().replace(/ /g, '-')).filter(Boolean) || [];
             if (!requiredMoves.every(reqMove => pokemonMovesLower.includes(reqMove))) return false;
         }
-        return true;
+        return true; // All specified criteria match
     },
 
      _calculateSinglePokemonMatchScore(pokemon, pokemonCriterion) {
          let singlePokemonScore = 0;
          if (!pokemon || !pokemonCriterion || !pokemonCriterion.pokemonName) return 0;
          const pokemonNameLower = pokemon.name?.toLowerCase().replace(/ /g, '-');
-         const criterionNameLower = pokemonCriterion.pokemonName?.toLowerCase();
+         const criterionNameLower = pokemonCriterion.pokemonName?.toLowerCase(); // Assume pokemonName is always lowercase from select value
+
+         // Exact Pokemon name match is required for this block type
          if (pokemonNameLower !== criterionNameLower) return 0;
 
          singlePokemonScore += SCORE_WEIGHTS.POKEMON_FOUND;
+
+         // Add score for matching sub-criteria if they are specified (not empty/null)
          if (pokemonCriterion.item && pokemon.item?.toLowerCase().replace(/ /g, '-') === pokemonCriterion.item) singlePokemonScore += SCORE_WEIGHTS.POKEMON_WITH_ITEM;
          if (pokemonCriterion.ability && pokemon.ability?.toLowerCase().replace(/ /g, '-') === pokemonCriterion.ability) singlePokemonScore += SCORE_WEIGHTS.POKEMON_WITH_ABILITY;
          if (pokemonCriterion.tera && pokemon.tera_type?.toLowerCase() === pokemonCriterion.tera) singlePokemonScore += SCORE_WEIGHTS.POKEMON_WITH_TERA;
@@ -421,7 +448,9 @@ const TeamMatcher = {
          const requiredMoves = [pokemonCriterion.move1, pokemonCriterion.move2, pokemonCriterion.move3, pokemonCriterion.move4].filter(Boolean);
          if (requiredMoves.length > 0) {
              const pokemonMovesLower = new Set(pokemon.moves?.map(m => (typeof m === 'object' ? m.name : m)?.toLowerCase().replace(/ /g, '-')).filter(Boolean) || []);
-             requiredMoves.forEach(reqMove => { if (pokemonMovesLower.has(reqMove)) singlePokemonScore += SCORE_WEIGHTS.POKEMON_WITH_MOVE; });
+             requiredMoves.forEach(reqMove => {
+                 if (pokemonMovesLower.has(reqMove)) singlePokemonScore += SCORE_WEIGHTS.POKEMON_WITH_MOVE;
+             });
          }
          return singlePokemonScore;
      },
@@ -431,18 +460,27 @@ const TeamMatcher = {
          if (!stats) return false;
          role = role?.toLowerCase();
          if (!role) return false;
+         // Simplified thresholds for example
          const ATK_THRESHOLD = 110, SPA_THRESHOLD = 110, DEF_THRESHOLD = 100, SPD_THRESHOLD = 100, SPE_THRESHOLD = 100, HP_THRESHOLD = 95;
+
          if ((role.includes("physical attacker") || role === "attacker") && stats.attack >= ATK_THRESHOLD) return true;
          if ((role.includes("special attack") || role === "special attacker") && stats['special-attack'] >= SPA_THRESHOLD) return true;
+         // General attacker role matches either high physical or special attack
          if (role === "attacker" && (stats.attack >= ATK_THRESHOLD || stats['special-attack'] >= SPA_THRESHOLD)) return true;
+
          if ((role.includes("physical defense") || role === "defensive" || role === "defense") && stats.defense >= DEF_THRESHOLD) return true;
          if ((role.includes("special defense") || role === "specially defensive") && stats['special-defense'] >= SPD_THRESHOLD) return true;
+          // General defensive role matches either high defense or special defense
          if ((role === "defensive" || role === "defense") && (stats.defense >= DEF_THRESHOLD || stats['special-defense'] >= SPD_THRESHOLD)) return true;
+
          if ((role.includes("speed") || role.includes("fast") || role.includes("speedy")) && stats.speed >= SPE_THRESHOLD) return true;
          if ((role.includes("bulk") || role.includes("hp") || role.includes("health")) && stats.hp >= HP_THRESHOLD) return true;
+         // Wall implies higher defensive stats
          if (role.includes("wall") && (stats.defense >= DEF_THRESHOLD + 15 || stats['special-defense'] >= SPD_THRESHOLD + 15)) return true;
+         // Bulky implies good HP and at least one good defensive stat
          if (role === "bulky" && stats.hp >= HP_THRESHOLD && (stats.defense >= DEF_THRESHOLD || stats['special-defense'] >= SPD_THRESHOLD)) return true;
-         return false;
+
+         return false; // Role not matched
     },
 };
 
@@ -461,41 +499,72 @@ const Generator = {
         const scoredTeams = [];
         console.log(`Generator: Scoring ${allTeams.length} teams...`);
         allTeams.forEach((team, index) => {
-             if (!team || !Array.isArray(team.pokemons)) return;
+             if (!team || !Array.isArray(team.pokemons)) return; // Skip invalid teams
             try {
                 const { score } = TeamMatcher.calculateMatchScore(queryCriteria, team);
-                if (score > 0) scoredTeams.push({ team, score, index });
-            } catch (error) { console.error(`Generator: Error matching team index ${index} (Filename: ${team?.filename || 'N/A'}):`, error); }
+                // Only include teams with a positive score
+                if (score > 0) {
+                    scoredTeams.push({ team, score, index });
+                }
+            } catch (error) {
+                console.error(`Generator: Error matching team index ${index} (Filename: ${team?.filename || 'N/A'}):`, error);
+            }
         });
         console.log(`Generator: Found ${scoredTeams.length} teams with a positive score.`);
 
+        // Sort by score descending
         scoredTeams.sort((a, b) => b.score - a.score);
+
+        // Filter for the highest score (could be multiple teams)
         const maxScore = scoredTeams.length > 0 ? scoredTeams[0].score : 0;
         const bestTeamsRaw = maxScore > 0 ? scoredTeams.filter(st => st.score === maxScore) : [];
+
         console.log(`Generator: Top score is ${maxScore}. Found ${bestTeamsRaw.length} teams matching this score.`);
+
+        // Simplify data for display
         return bestTeamsRaw.map(st => this._simplifyTeamData(st.team));
     },
 
     // No changes needed in _simplifyTeamData
     _simplifyTeamData(team) {
+        // Use optional chaining and provide defaults
         return {
             filename: team?.filename || "unknown_filename.txt",
             pokemons: (team?.pokemons || []).map(p => {
+                // Skip if essential data like name is missing
                 if (!p?.name) return null;
+
+                // Process moves safely
                 const moves = Array.isArray(p.moves) ? p.moves : [];
                 const processedMoves = moves.slice(0, 4).map(m => {
-                    let name = null, type = 'unknown';
-                    if (typeof m === 'object' && m?.name && m.name !== '-') { name = m.name; type = m.type?.toLowerCase() || 'unknown'; }
-                    else if (typeof m === 'string' && m !== '-') { name = m; }
-                    return name ? { name, type } : null;
-                }).filter(Boolean);
+                    let name = null;
+                    let type = 'unknown';
+                    if (typeof m === 'object' && m?.name && m.name !== '-') {
+                        name = m.name;
+                        type = m.type?.toLowerCase() || 'unknown'; // Ensure type exists and is lowercase
+                    } else if (typeof m === 'string' && m !== '-') {
+                        name = m;
+                        // Type is unknown if only name string is provided
+                    }
+                    return name ? { name, type } : null; // Return null if move name is invalid/missing
+                }).filter(Boolean); // Filter out any null entries
+
+                // Validate and normalize Tera Type
                 const teraTypeLower = p.tera_type?.toLowerCase();
-                const validTeraType = teraTypeLower && TERA_TYPES.includes(teraTypeLower) ? p.tera_type : null;
+                const validTeraType = teraTypeLower && TERA_TYPES.includes(teraTypeLower) ? p.tera_type : null; // Store original case if valid
+
+                // Provide default sprite safely
+                const sprite = p.sprites?.front_default || null; // Use null if not available
+
                 return {
-                    name: p.name, ability: p.ability || null, item: (p.item && p.item !== "None") ? p.item : null,
-                    moves: processedMoves, tera_type: validTeraType, sprite: p.sprites?.front_default || null,
+                    name: p.name, // Assume name exists from initial check
+                    ability: p.ability || null, // Use null if missing
+                    item: (p.item && p.item !== "None") ? p.item : null, // Use null if missing or "None"
+                    moves: processedMoves,
+                    tera_type: validTeraType,
+                    sprite: sprite,
                 };
-            }).filter(Boolean)
+            }).filter(Boolean) // Remove any null Pokémon entries from the final array
         };
     }
 };
